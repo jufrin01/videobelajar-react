@@ -1,6 +1,13 @@
 import React from 'react';
 
-const FormInput = ({ label, type = "text", placeholder, value, onChange, required = false }) => {
+const FormInput = ({
+                       label,
+                       type = "text",
+                       placeholder,
+                       value,
+                       onChange,
+                       required = false}) => {
+
     return (
         <div className="mb-5 text-left">
             {/* Label Input */}

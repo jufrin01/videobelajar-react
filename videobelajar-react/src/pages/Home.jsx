@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import CourseCard from '../components/CourseCard';
+import Layout from '../components/Layout';
 
-// IMPORT GAMBAR BACKGROUND HERO & NEWSLETTER
 const heroBg = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2671&auto=format&fit=crop";
 const newsletterBg = "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2574&auto=format&fit=crop";
 
@@ -12,32 +13,28 @@ const Home = () => {
     const categories = ["Semua Kelas", "Pemasaran", "Desain", "Pengembangan Diri", "Bisnis"];
 
     return (
-        <>
-            <Navbar/>
+        // BUNGKUS SEMUA DENGAN LAYOUT
+        <Layout>
 
-            {/* === HERO SECTION (Tetap Sama) === */}
-            <div className="relative w-full h-[500px] flex items-center justify-center bg-cover bg-center"
-                 style={{backgroundImage: `url('${heroBg}')`}}>
+            {/* === HERO SECTION === */}
+            <div className="relative w-full h-[500px] flex items-center justify-center bg-cover bg-center" style={{ backgroundImage: `url('${heroBg}')` }}>
                 <div className="absolute inset-0 bg-black/60"></div>
                 <div className="relative z-10 text-center px-6 max-w-5xl mx-auto">
                     <h1 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">
-                        Revolusi Pembelajaran: Temukan <br className="hidden md:block"/>
+                        Revolusi Pembelajaran: Temukan <br className="hidden md:block" />
                         Ilmu Baru melalui Platform Video Interaktif!
                     </h1>
                     <p className="text-gray-200 text-sm md:text-lg mb-8 max-w-3xl mx-auto leading-relaxed">
-                        Temukan ilmu baru yang menarik dan mendalam melalui koleksi video pembelajaran berkualitas
-                        tinggi.
+                        Temukan ilmu baru yang menarik dan mendalam melalui koleksi video pembelajaran berkualitas tinggi.
                     </p>
-                    <button
-                        className="bg-primary hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg transition-all shadow-lg transform hover:scale-105">
+                    <button className="bg-primary hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg transition-all shadow-lg transform hover:scale-105">
                         Temukan Video Course untuk Dipelajari!
                     </button>
                 </div>
             </div>
 
-            {/* === SECTION KOLEKSI VIDEO (Tetap Sama) === */}
-            <div className="w-full max-w-7xl mx-auto px-6 py-12 pb-20">
-                {/* Header Judul & Deskripsi */}
+            {/* === SECTION KOLEKSI VIDEO === */}
+            <div className="w-full max-w-7xl mx-auto px-6 py-12 pb-10">
                 <div className="mb-8">
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">Koleksi Video Pembelajaran Unggulan</h2>
                     <p className="text-gray-500">Jelajahi Dunia Pengetahuan Melalui Pilihan Kami!</p>
@@ -46,31 +43,23 @@ const Home = () => {
                 {/* Tab Kategori */}
                 <div className="flex flex-wrap items-center gap-6 mb-10 border-b border-gray-100 pb-1">
                     {categories.map((cat) => (
-                        <button
-                            key={cat}
-                            onClick={() => setActiveTab(cat)}
-                            className={`pb-3 text-sm font-medium transition-all relative ${
-                                activeTab === cat
-                                    ? 'text-orange'
-                                    : 'text-gray-500 hover:text-gray-800'
-                            }`}
-                        >
+                        <button key={cat} onClick={() => setActiveTab(cat)}
+                                className={`pb-3 text-sm font-medium transition-all relative ${activeTab === cat ? 'text-orange' : 'text-gray-500 hover:text-gray-800'}`}>
                             {cat}
-                            {activeTab === cat && (
-                                <div className="absolute bottom-0 left-0 w-full h-[3px] bg-orange rounded-t-md"></div>
-                            )}
+                            {activeTab === cat &&
+                                <div className="absolute bottom-0 left-0 w-full h-[3px] bg-orange rounded-t-md"></div>}
                         </button>
                     ))}
                 </div>
 
+                {/* Grid Kursus */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
-                    {/* Kartu 1 (Data Dummy sesuai gambar) */}
                     <CourseCard
                         img="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=600"
                         title="Big 4 Auditor Financial Analyst"
                         desc="Mulai transformasi dengan instruktur profesional, harga yang terjangkau, dan kurikulum terbaik."
-                        authorName="Jenna Ortega"
+                        authorName="Jufrin Abdul hamid"
                         authorRole="Senior Accountant di Gojek"
                         authorImg="https://ui-avatars.com/api/?name=Jenna+Ortega&background=FFD700&color=fff"
                         rating="3.5"
@@ -104,7 +93,6 @@ const Home = () => {
                         price="Rp 300K"
                     />
 
-                    {/* Duplikasi agar terlihat penuh seperti grid */}
                     <CourseCard
                         img="https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=600"
                         title="Corporate Finance 101"
@@ -143,78 +131,32 @@ const Home = () => {
             </div>
 
             {/* === NEWSLETTER SECTION === */}
-            {/* UPDATE: Menggunakan mt-0 (margin top 0) agar langsung nempel naik ke atas */}
             <div className="px-6 mb-20 mt-0">
                 <div
                     className="relative w-full max-w-6xl mx-auto py-16 px-6 flex items-center justify-center bg-cover bg-center rounded-3xl overflow-hidden shadow-2xl"
                     style={{backgroundImage: `url('${newsletterBg}')`}}>
-
                     <div className="absolute inset-0 bg-black/70"></div>
-
                     <div className="relative z-10 text-center max-w-3xl mx-auto text-white">
                         <span
                             className="block text-sm font-semibold tracking-widest mb-3 uppercase text-gray-300">Newsletter</span>
-                        <h2 className="text-3xl md:text-4xl font-bold mb-6 leading-tight">
-                            Mau Belajar Lebih Banyak?
-                        </h2>
+                        <h2 className="text-3xl md:text-4xl font-bold mb-6 leading-tight">Mau Belajar Lebih Banyak?</h2>
                         <p className="text-gray-200 mb-10 max-w-xl mx-auto leading-relaxed">
                             Daftarkan dirimu untuk mendapatkan informasi terbaru dan penawaran spesial dari
                             program-program terbaik kami.
                         </p>
-
                         <div className="bg-white p-2 rounded-full shadow-lg max-w-xl mx-auto flex items-center">
-                            <input
-                                type="email"
-                                placeholder="Masukkan Emailmu"
-                                className="flex-1 px-6 py-3 rounded-full text-gray-700 focus:outline-none bg-transparent"
-                            />
+                            <input type="email" placeholder="Masukkan Emailmu"
+                                   className="flex-1 px-6 py-3 rounded-full text-gray-700 focus:outline-none bg-transparent"/>
                             <button
-                                className="bg-orange hover:bg-orange/90 text-white font-bold py-3 px-8 rounded-full transition-all transform hover:scale-105">
-                                Subscribe
+                                className="bg-orange hover:bg-orange/90 text-white font-bold py-3 px-8 rounded-full transition-all transform hover:scale-105">Subscribe
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <Footer />
-        </>
+        </Layout>
     );
 };
-
-// --- KOMPONEN KARTU KURSUS (Tetap Sama) ---
-const CourseCard = ({img, title, desc, authorName, authorRole, authorImg, rating, reviews, price}) => (
-    <div
-        className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group cursor-pointer">
-        <div className="relative h-48 overflow-hidden">
-            <img src={img} alt={title}
-                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
-        </div>
-        <div className="p-5 flex flex-col flex-1">
-            <h3 className="text-lg font-bold text-gray-900 mb-2 leading-snug">{title}</h3>
-            <p className="text-sm text-gray-500 mb-4 line-clamp-2 leading-relaxed">{desc}</p>
-            <div className="flex items-center gap-3 mb-5">
-                <img src={authorImg} alt={authorName} className="w-9 h-9 rounded-lg object-cover"/>
-                <div>
-                    <p className="text-sm font-bold text-gray-800 leading-none">{authorName}</p>
-                    <p className="text-xs text-gray-400 mt-1">{authorRole}</p>
-                </div>
-            </div>
-            <div className="mt-auto flex justify-between items-end pt-3">
-                <div className="flex items-center gap-1">
-                    <div className="flex text-yellow-400 text-xs">
-                        <i className="fa-solid fa-star"></i>
-                        <i className="fa-solid fa-star"></i>
-                        <i className="fa-solid fa-star"></i>
-                        <i className="fa-solid fa-star-half-stroke"></i>
-                        <i className="fa-regular fa-star"></i>
-                    </div>
-                    <span className="text-xs text-gray-400 ml-1 underline">{rating} ({reviews})</span>
-                </div>
-                <span className="text-xl font-bold text-primary">{price}</span>
-            </div>
-        </div>
-    </div>
-);
 
 export default Home;
