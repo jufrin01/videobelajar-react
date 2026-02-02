@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import CourseCard from '../components/CourseCard';
 import Layout from '../components/Layout';
 
@@ -56,6 +54,7 @@ const Home = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
                     <CourseCard
+                        id={1}
                         img="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=600"
                         title="Big 4 Auditor Financial Analyst"
                         desc="Mulai transformasi dengan instruktur profesional, harga yang terjangkau, dan kurikulum terbaik."
@@ -69,6 +68,7 @@ const Home = () => {
 
                     {/* Kartu 2 */}
                     <CourseCard
+                        id={2}
                         img="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=600"
                         title="Data Science Fundamentals"
                         desc="Pelajari dasar-dasar pengolahan data dengan Python dan SQL dari nol sampai mahir."
@@ -82,6 +82,7 @@ const Home = () => {
 
                     {/* Kartu 3 */}
                     <CourseCard
+                        id={3}
                         img="https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&q=80&w=600"
                         title="Digital Marketing Mastery"
                         desc="Kuasai strategi pemasaran digital, SEO, dan Social Media Ads untuk bisnis modern."
@@ -94,6 +95,7 @@ const Home = () => {
                     />
 
                     <CourseCard
+                        id={4}
                         img="https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&q=80&w=600"
                         title="Corporate Finance 101"
                         desc="Memahami laporan keuangan perusahaan dan cara menganalisis kesehatan bisnis."
@@ -105,6 +107,7 @@ const Home = () => {
                         price="Rp 300K"
                     />
                     <CourseCard
+                        id={4}
                         img="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=600"
                         title="Leadership & Management"
                         desc="Cara memimpin tim yang efektif dan produktif di era digital."
@@ -116,6 +119,7 @@ const Home = () => {
                         price="Rp 300K"
                     />
                     <CourseCard
+                        id={5}
                         img="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=600"
                         title="Business Strategy Expert"
                         desc="Rancang strategi bisnis yang unggul untuk memenangkan persaingan pasar."

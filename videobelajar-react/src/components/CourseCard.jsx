@@ -1,7 +1,9 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const CourseCard = (
         {
+            id,
             img,
             title,
             desc,
@@ -13,6 +15,7 @@ const CourseCard = (
             price}) => {
 
     return (
+        <Link to={`/course/${id || 1}`} className="block no-underline">
         <div className="bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group cursor-pointer">
 
             {/* 1. Thumbnail Image */}
@@ -58,6 +61,7 @@ const CourseCard = (
                 </div>
             </div>
         </div>
+        </Link>
     );
 };
 

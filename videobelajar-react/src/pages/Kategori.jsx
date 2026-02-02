@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import CourseCard from '../components/CourseCard';
+import FilterGroup from '../components/FilterGroup';
+import CheckboxItem from '../components/CheckboxItem';
 
 const COURSES_DATA = [
     {
@@ -217,6 +219,7 @@ const Kategori = () => {
                                 {filteredCourses.map((course) => (
                                     <CourseCard
                                         key={course.id}
+                                        id={course.id}
                                         img="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=600"
                                         title={course.title}
                                         desc={course.desc}
@@ -266,30 +269,5 @@ const Kategori = () => {
         </Layout>
     );
 };
-
-// --- KOMPONEN KECIL UNTUK FILTER (Agar Rapi) ---
-const FilterGroup = ({ title, children, defaultOpen = false }) => (
-    <details className="group mb-2" open={defaultOpen}>
-        <summary className="flex justify-between items-center font-semibold text-gray-700 cursor-pointer list-none py-2">
-            <span className="flex items-center gap-2">{title}</span>
-            <span className="transition group-open:rotate-180">
-                <i className="fa-solid fa-chevron-down text-xs text-gray-400"></i>
-            </span>
-        </summary>
-        <div className="text-sm text-gray-500 mt-2 mb-4 space-y-3 pl-1">
-            {children}
-        </div>
-    </details>
-);
-
-const CheckboxItem = ({ label, checked = false }) => (
-    <label className="flex items-center gap-3 cursor-pointer group">
-        <div className="relative flex items-center">
-            <input type="checkbox" className="peer appearance-none w-5 h-5 border-2 border-gray-300 rounded checked:bg-primary checked:border-primary transition-colors" defaultChecked={checked} />
-            <i className="fa-solid fa-check text-white text-xs absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 peer-checked:opacity-100 pointer-events-none"></i>
-        </div>
-        <span className="group-hover:text-primary transition-colors">{label}</span>
-    </label>
-);
 
 export default Kategori;
