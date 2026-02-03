@@ -1,8 +1,13 @@
-# ⚔️ VideoBelajar: React Quest ⚔️
+# ⚔️ VideoBelajar React Quest ⚔️
 
 <p align="center">
   <img src="https://capsule-render.vercel.app/render?type=soft&color=auto&height=200&section=header&text=React%20x%20Tailwind&fontSize=70&animation=fadeIn" width="100%" />
 </p>
+
+USER LOGIN Testing and watching my action 
+
+email dummy = jufrin@gmail.com
+password dummy = 123
 
 ## 🎮 Player Profile
 - **Username:** [jufrin01](https://github.com/jufrin01)
