@@ -3,22 +3,23 @@ import CourseCard from '../components/CourseCard';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
 import { coursesData } from '../data/coursesData';
+import { useNavigate } from 'react-router-dom';
 
 const heroBg = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2671&auto=format&fit=crop";
 const newsletterBg = "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2574&auto=format&fit=crop";
 
 const Home = () => {
-    // 2. STATE UNTUK PAGINATION & TAB
+    const navigate = useNavigate(); // 2. INISIALISASI NAVIGATE
+
     const [activeTab, setActiveTab] = useState("Semua Kelas");
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 9; // Menampilkan 9 kursus per halaman
+    const itemsPerPage = 9;
 
     const categories = ["Semua Kelas", "Teknologi", "Bisnis", "Desain", "Pemasaran", "Pengembangan Diri"];
 
-    // 3. LOGIKA FILTER DATA (HAPUS SLICE DISINI AGAR TOTAL DATA TERHITUNG BENAR)
     const filteredCourses = useMemo(() => {
         if (activeTab === "Semua Kelas") {
-            return coursesData; // Return SEMUA data, jangan di-slice dulu
+            return coursesData;
         }
 
         return coursesData.filter(course => {
@@ -40,25 +41,30 @@ const Home = () => {
         });
     }, [activeTab]);
 
-    // 4. RESET HALAMAN KE 1 SAAT GANTI KATEGORI
+    // RESET HALAMAN KE 1 SAAT GANTI KATEGORI
     useEffect(() => {
         setCurrentPage(1);
     }, [activeTab]);
 
-    // 5. HITUNG DATA UNTUK HALAMAN SAAT INI
+    // HITUNG DATA UNTUK HALAMAN SAAT INI
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentCourses = filteredCourses.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredCourses.length / itemsPerPage);
 
-    // Fungsi ganti halaman (Scroll ke atas smooth)
+    // Fungsi ganti halaman
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
-        // Opsi: Scroll ke bagian atas grid kursus
         const element = document.getElementById('course-section');
         if (element) {
             element.scrollIntoView({ behavior: 'smooth' });
         }
+    };
+
+    // 3. FUNGSI HANDLER KLIK KE CHECKOUT
+    const handleCourseClick = (courseId) => {
+        // Arahkan ke halaman checkout dengan ID kursus
+        navigate(`/checkout/${courseId}`);
     };
 
     return (
@@ -104,28 +110,34 @@ const Home = () => {
                     ))}
                 </div>
 
-                {/* Grid Kursus (GUNAKAN currentCourses) */}
+                {/* Grid Kursus */}
                 {currentCourses.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {currentCourses.map((course) => (
-                                <CourseCard
+                                // 4. WRAPPER KLIK KE CHECKOUT
+                                <div
                                     key={course.id}
-                                    id={course.id}
-                                    img={course.image}
-                                    title={course.title}
-                                    desc={course.description}
-                                    authorName={course.instructor.name}
-                                    authorRole={course.instructor.role}
-                                    authorImg={course.instructor.avatar}
-                                    rating={course.rating}
-                                    reviews={course.reviews}
-                                    price="Rp 300K"
-                                />
+                                    onClick={() => handleCourseClick(course.id)}
+                                    className="cursor-pointer group"
+                                >
+                                    <CourseCard
+                                        id={course.id} // Tetap kirim ID props
+                                        img={course.image}
+                                        title={course.title}
+                                        desc={course.description}
+                                        authorName={course.instructor.name}
+                                        authorRole={course.instructor.role}
+                                        authorImg={course.instructor.avatar}
+                                        rating={course.rating}
+                                        reviews={course.reviews}
+                                        price="Rp 300K"
+                                    />
+                                </div>
                             ))}
                         </div>
 
-                        {/* 6. PASANG KOMPONEN PAGINATION */}
+                        {/* Pagination */}
                         <Pagination
                             currentPage={currentPage}
                             totalPages={totalPages}
