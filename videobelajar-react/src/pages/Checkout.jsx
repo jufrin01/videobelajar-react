@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import CheckoutNavbar from '../components/CheckoutNavbar';
 import PaymentAccordion from '../components/PaymentAccordion';
 import PaymentOption from '../components/PaymentOption';
+import CheckoutFooter from '../components/CheckoutFooter';
 
+// 1. DATA DUMMY KURSUS
 const COURSES_DATA = [
     {
         id: 1,
@@ -39,11 +41,15 @@ const COURSES_DATA = [
 
 const Checkout = () => {
     const { id } = useParams();
-    const [selectedPayment, setSelectedPayment] = useState("BCA");
-    const [expandedSection, setExpandedSection] = useState("bank");
 
+    // State untuk menyimpan pilihan pembayaran (Default BCA)
+    const [selectedPayment, setSelectedPayment] = useState("BCA");
+    const [expandedSection, setExpandedSection] = useState("bank"); // Default accordion bank terbuka
+
+    // Cari data kursus berdasarkan ID URL
     const course = COURSES_DATA.find((item) => item.id === parseInt(id));
 
+    // Scroll ke atas saat halaman dibuka
     useEffect(() => {
         window.scrollTo(0, 0);
     }, [id]);
@@ -52,6 +58,7 @@ const Checkout = () => {
         return <div className="min-h-screen flex items-center justify-center">Kursus tidak ditemukan</div>;
     }
 
+    // Kalkulasi Harga
     const adminFee = 7000;
     const totalPayment = course.priceNum + adminFee;
 
@@ -62,16 +69,18 @@ const Checkout = () => {
     return (
         <div className="min-h-screen bg-[#FFFDF3] pb-20">
 
+            {/* Navbar Khusus Checkout */}
             <CheckoutNavbar />
 
             <div className="w-full max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
 
-                {/* GRID UTAMA */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+
+                    {/* === 1. INFO KURSUS (MOBILE: POSISI ATAS, DESKTOP: POSISI KANAN) === */}
                     <div className="lg:col-span-1 lg:col-start-3 h-fit">
                         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm sticky top-24">
 
-                            {/* Judul (Hanya tampil di Mobile untuk Info Kursus) */}
+                            {/* Judul (Mobile Only) */}
                             <h3 className="lg:hidden font-bold text-xl text-gray-900 mb-4">Detail Kelas</h3>
 
                             {/* Gambar Kursus */}
@@ -110,13 +119,17 @@ const Checkout = () => {
                         </div>
                     </div>
 
+                    {/* === 2. METODE PEMBAYARAN & RINGKASAN (MOBILE: POSISI BAWAH, DESKTOP: POSISI KIRI) === */}
                     <div className="lg:col-span-2 lg:col-start-1 lg:row-start-1 space-y-8">
 
-                        {/* Judul Halaman */}
-                        <div>
-                            <h2 className="text-2xl font-bold text-gray-900 mb-6">Metode Pembayaran</h2>
+                        {/* Header Judul (Desktop Only) */}
+                        <div className="hidden lg:block">
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Metode Pembayaran</h2>
+                        </div>
 
-                            {/* Accordions */}
+                        {/* Accordion Pilihan Pembayaran */}
+                        <div>
+                            {/* Bank Transfer */}
                             <PaymentAccordion title="Transfer Bank" isOpen={expandedSection === 'bank'} onToggle={() => toggleSection('bank')}>
                                 <PaymentOption id="BCA" logo="https://upload.wikimedia.org/wikipedia/commons/5/5c/Bank_Central_Asia.svg" name="Bank BCA" selected={selectedPayment} onSelect={setSelectedPayment} />
                                 <PaymentOption id="BNI" logo="https://upload.wikimedia.org/wikipedia/id/5/55/BNI_logo.svg" name="Bank BNI" selected={selectedPayment} onSelect={setSelectedPayment} />
@@ -124,6 +137,7 @@ const Checkout = () => {
                                 <PaymentOption id="Mandiri" logo="https://upload.wikimedia.org/wikipedia/commons/a/ad/Bank_Mandiri_logo_2016.svg" name="Bank Mandiri" selected={selectedPayment} onSelect={setSelectedPayment} />
                             </PaymentAccordion>
 
+                            {/* E-Wallet */}
                             <PaymentAccordion title="E-Wallet" isOpen={expandedSection === 'ewallet'} onToggle={() => toggleSection('ewallet')}>
                                 <PaymentOption id="Dana" logo="https://upload.wikimedia.org/wikipedia/commons/7/72/Logo_dana_blue.svg" name="Dana" selected={selectedPayment} onSelect={setSelectedPayment} />
                                 <PaymentOption id="OVO" logo="https://upload.wikimedia.org/wikipedia/commons/e/eb/Logo_ovo_purple.svg" name="OVO" selected={selectedPayment} onSelect={setSelectedPayment} />
@@ -131,6 +145,7 @@ const Checkout = () => {
                                 <PaymentOption id="ShopeePay" logo="https://upload.wikimedia.org/wikipedia/commons/f/fe/Shopee.svg" name="Shopee Pay" selected={selectedPayment} onSelect={setSelectedPayment} />
                             </PaymentAccordion>
 
+                            {/* Kartu Kredit */}
                             <PaymentAccordion title="Kartu Kredit/Debit" isOpen={expandedSection === 'cc'} onToggle={() => toggleSection('cc')}>
                                 <div className="flex items-center gap-4 p-4">
                                     <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Mastercard-logo.svg" className="h-6" alt="Mastercard" />
@@ -139,7 +154,7 @@ const Checkout = () => {
                             </PaymentAccordion>
                         </div>
 
-                        {/* Ringkasan Pesanan */}
+                        {/* Ringkasan Pesanan (Posisi Kiri Bawah) */}
                         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
                             <h4 className="font-bold text-lg mb-6 text-gray-900">Ringkasan Pesanan</h4>
 
@@ -161,15 +176,24 @@ const Checkout = () => {
                                 <span className="font-bold text-green-500 text-xl">Rp {totalPayment.toLocaleString('id-ID')}</span>
                             </div>
 
-                            <button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-lg shadow-md hover:shadow-lg transition-all transform active:scale-95 text-center">
+                            {/* TOMBOL BAYAR (Link ke PaymentPage dengan membawa data Bank) */}
+                            <Link
+                                to={`/payment/${id}`}
+                                state={{ paymentMethod: selectedPayment }} // <--- Mengirim data bank yg dipilih
+                                className="block w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-lg shadow-md hover:shadow-lg transition-all transform active:scale-95 text-center"
+                            >
                                 Beli Sekarang
-                            </button>
+                            </Link>
                         </div>
 
                     </div>
 
                 </div>
             </div>
+
+            {/* Footer (Hanya muncul di Mobile) */}
+            <CheckoutFooter />
+
         </div>
     );
 };
