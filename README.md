@@ -9,6 +9,10 @@ USER LOGIN Testing and watching my action
 email dummy = jufrin@gmail.com
 password dummy = 123
 
+My Bio Linkend 
+
+link = https://www.linkedin.com/in/jufrin-abdul-hamid-3b2b95a4/
+
 ## 🎮 Player Profile
 - **Username:** [jufrin01](https://github.com/jufrin01)
 - **Class:** Backend Developer (Lvl. Up to Fullstack)

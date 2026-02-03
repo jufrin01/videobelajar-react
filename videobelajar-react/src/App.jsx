@@ -10,6 +10,10 @@ import PaymentPage from './pages/PaymentPage';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentPending from './pages/PaymentPending';
 import PesananSaya from './pages/PesananSaya';
+import KelasSaya from './pages/KelasSaya';
+import Profile from './pages/Profile';
+import ClassDetail from './pages/ClassDetail';
+import Certificate from './pages/Certificate';
 
 function App() {
     return (
@@ -27,6 +31,11 @@ function App() {
                 <Route path="/payment-success" element={<PaymentSuccess />} />
                 <Route path="/payment-pending" element={<PaymentPending />} />
                 <Route path="/pesanan-saya" element={<PesananSaya />} />
+                <Route path="/kelas-saya" element={<KelasSaya />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/learn/:id" element={<ClassDetail />} />
+                <Route path="/certificate/:id" element={<Certificate />} />
+
                 {/* Opsional: Jika user iseng ketik url sembarangan, balikin ke Login */}
                 <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>

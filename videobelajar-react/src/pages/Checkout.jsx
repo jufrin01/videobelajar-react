@@ -1,65 +1,65 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import CheckoutNavbar from '../components/CheckoutNavbar';
 import PaymentAccordion from '../components/PaymentAccordion';
 import PaymentOption from '../components/PaymentOption';
 import CheckoutFooter from '../components/CheckoutFooter';
-
-// 1. DATA DUMMY KURSUS
-const COURSES_DATA = [
-    {
-        id: 1,
-        title: "Gapai Karier Impianmu sebagai Seorang UI/UX Designer & Product Manager.",
-        img: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=600",
-        priceDisplay: "Rp 250.000",
-        originalPriceDisplay: "Rp 500.000",
-        priceNum: 250000,
-        originalPriceNum: 500000,
-        benefits: ["Ujian Akhir", "49 Video", "7 Dokumen", "Sertifikat", "Pretest"]
-    },
-    {
-        id: 2,
-        title: "Data Science Fundamentals",
-        img: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=600",
-        priceDisplay: "Rp 300.000",
-        originalPriceDisplay: "Rp 500.000",
-        priceNum: 300000,
-        originalPriceNum: 500000,
-        benefits: ["Akses Selamanya", "30 Video", "Sertifikat", "Forum Diskusi"]
-    },
-    {
-        id: 3,
-        title: "Digital Marketing Mastery",
-        img: "https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&q=80&w=600",
-        priceDisplay: "Rp 300.000",
-        originalPriceDisplay: "Rp 750.000",
-        priceNum: 300000,
-        originalPriceNum: 750000,
-        benefits: ["Template Iklan", "50 Video", "Mentoring", "Sertifikat"]
-    },
-];
+import { coursesData } from '../data/coursesData';
 
 const Checkout = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
 
-    // State untuk menyimpan pilihan pembayaran (Default BCA)
+    // State Pembayaran
     const [selectedPayment, setSelectedPayment] = useState("BCA");
-    const [expandedSection, setExpandedSection] = useState("bank"); // Default accordion bank terbuka
+    const [expandedSection, setExpandedSection] = useState("bank");
 
-    // Cari data kursus berdasarkan ID URL
-    const course = COURSES_DATA.find((item) => item.id === parseInt(id));
+    // 2. CARI & TRANSFORMASI DATA
+    const course = useMemo(() => {
+        const rawCourse = coursesData.find((item) => item.id === parseInt(id));
 
-    // Scroll ke atas saat halaman dibuka
+        if (!rawCourse) return null;
+
+        // Data dummy pelengkap untuk keperluan Checkout
+        // (Karena data pusat tidak menyimpan harga numerik/benefits)
+        const isFree = rawCourse.id % 5 === 0; // Logic dummy: ID kelipatan 5 gratis
+        const priceNum = isFree ? 0 : 300000;
+        const originalPriceNum = isFree ? 0 : 600000;
+
+        return {
+            ...rawCourse,
+            // Mapping Field agar sesuai UI Checkout yang sudah ada
+            img: rawCourse.image,
+            priceNum: priceNum,
+            originalPriceNum: originalPriceNum,
+            priceDisplay: isFree ? "Gratis" : "Rp " + priceNum.toLocaleString('id-ID'),
+            originalPriceDisplay: isFree ? "" : "Rp " + originalPriceNum.toLocaleString('id-ID'),
+            benefits: [
+                "Akses Selamanya",
+                `${rawCourse.totalModules} Modul Materi`,
+                "Sertifikat Kompetensi",
+                "Grup Diskusi"
+            ]
+        };
+    }, [id]);
+
+    // Scroll to top
     useEffect(() => {
         window.scrollTo(0, 0);
     }, [id]);
 
+    // Handle Not Found
     if (!course) {
-        return <div className="min-h-screen flex items-center justify-center">Kursus tidak ditemukan</div>;
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+                <div className="text-xl font-bold text-gray-600">Kursus tidak ditemukan</div>
+                <button onClick={() => navigate('/')} className="text-green-500 underline">Kembali ke Beranda</button>
+            </div>
+        );
     }
 
-    // Kalkulasi Harga
-    const adminFee = 7000;
+    // Kalkulasi Harga Akhir
+    const adminFee = course.priceNum === 0 ? 0 : 7000; // Gratis = No Admin Fee
     const totalPayment = course.priceNum + adminFee;
 
     const toggleSection = (section) => {
@@ -67,7 +67,7 @@ const Checkout = () => {
     };
 
     return (
-        <div className="min-h-screen bg-[#FFFDF3] pb-20">
+        <div className="min-h-screen bg-[#FFFDF3] pb-20 font-poppins">
 
             {/* Navbar Khusus Checkout */}
             <CheckoutNavbar />
@@ -92,15 +92,19 @@ const Checkout = () => {
                             <h3 className="font-bold text-gray-900 mb-2 leading-snug text-lg">{course.title}</h3>
                             <div className="flex items-center gap-2 mb-6">
                                 <span className="text-green-500 font-bold text-lg">{course.priceDisplay}</span>
-                                <span className="text-gray-400 line-through text-sm">{course.originalPriceDisplay}</span>
-                                <span className="bg-orange text-white text-[10px] font-bold px-2 py-1 rounded">Diskon 50%</span>
+                                {course.originalPriceNum > 0 && (
+                                    <>
+                                        <span className="text-gray-400 line-through text-sm">{course.originalPriceDisplay}</span>
+                                        <span className="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded">Diskon 50%</span>
+                                    </>
+                                )}
                             </div>
 
                             {/* Fasilitas */}
                             <div className="space-y-4">
                                 <h4 className="font-bold text-gray-800 text-sm">Kelas Ini Sudah Termasuk</h4>
                                 <ul className="text-sm text-gray-500 space-y-3">
-                                    {course.benefits && course.benefits.map((benefit, idx) => (
+                                    {course.benefits.map((benefit, idx) => (
                                         <li key={idx} className="flex items-center gap-3">
                                             <i className="fa-regular fa-file-lines w-4 text-gray-400"></i> {benefit}
                                         </li>
@@ -154,7 +158,7 @@ const Checkout = () => {
                             </PaymentAccordion>
                         </div>
 
-                        {/* Ringkasan Pesanan (Posisi Kiri Bawah) */}
+                        {/* Ringkasan Pesanan */}
                         <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
                             <h4 className="font-bold text-lg mb-6 text-gray-900">Ringkasan Pesanan</h4>
 
@@ -176,13 +180,13 @@ const Checkout = () => {
                                 <span className="font-bold text-green-500 text-xl">Rp {totalPayment.toLocaleString('id-ID')}</span>
                             </div>
 
-                            {/* TOMBOL BAYAR (Link ke PaymentPage dengan membawa data Bank) */}
+                            {/* TOMBOL BAYAR */}
                             <Link
                                 to={`/payment/${id}`}
-                                state={{ paymentMethod: selectedPayment }} // <--- Mengirim data bank yg dipilih
-                                className="block w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-lg shadow-md hover:shadow-lg transition-all transform active:scale-95 text-center"
+                                state={{ paymentMethod: selectedPayment, total: totalPayment }}
+                                className="block w-full bg-[#3ECF4C] hover:bg-green-600 text-white font-bold py-4 rounded-lg shadow-md hover:shadow-lg transition-all transform active:scale-95 text-center"
                             >
-                                Beli Sekarang
+                                Bayar Sekarang
                             </Link>
                         </div>
 
@@ -191,7 +195,7 @@ const Checkout = () => {
                 </div>
             </div>
 
-            {/* Footer (Hanya muncul di Mobile) */}
+            {/* Footer Mobile */}
             <CheckoutFooter />
 
         </div>

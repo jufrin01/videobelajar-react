@@ -1,6 +1,7 @@
 import React from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
+import ChatBot from './ChatBot';
 
 // Layout menerima 'children', yaitu konten halaman (Home, Profile, dll)
 const Layout = ({ children }) => {
@@ -17,6 +18,7 @@ const Layout = ({ children }) => {
 
             {/* 3. Footer selalu ada di bawah */}
             <Footer />
+            <ChatBot />
 
         </div>
     );

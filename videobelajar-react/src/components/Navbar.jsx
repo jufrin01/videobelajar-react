@@ -58,7 +58,7 @@ const Navbar = () => {
             <Link to="/pesanan-saya" className="block px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium rounded-lg md:hidden">
                 Pesanan Saya
             </Link>
-            <Link to="/my-courses" className="block px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium rounded-lg md:hidden">
+            <Link to="/kelas-saya" className="block px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium rounded-lg md:hidden">
                 Kelas Saya
             </Link>
         </>
@@ -108,7 +108,7 @@ const Navbar = () => {
                                             <div className="py-2">
                                                 <Link to="/profile" className="block px-5 py-2 text-sm text-gray-600 hover:bg-gray-50">Profil Saya</Link>
                                                 <Link to="/pesanan-saya" className="block px-5 py-2 text-sm text-gray-600 hover:bg-gray-50">Pesanan Saya</Link>
-                                                <Link to="/my-courses" className="block px-5 py-2 text-sm text-gray-600 hover:bg-gray-50">Kelas Saya</Link>
+                                                <Link to="/kelas-saya" className="block px-5 py-2 text-sm text-gray-600 hover:bg-gray-50">Kelas Saya</Link>
                                             </div>
                                             <div className="border-t border-gray-100">
                                                 <button onClick={handleLogout} className="w-full text-left px-5 py-3 text-sm text-red-500 font-semibold hover:bg-red-50 flex justify-between items-center">
