@@ -28,5 +28,5 @@ Selamat datang di **VideoBelajar-React**! Ini adalah *dungeon* tempat saya menga
 
 1. **Summon the Code (Clone)**
    ```bash
-   git clone [https://github.com/jufrin01/videobelajar-react.git](https://github.com/jufrin01/videobelajar-react.git)
+   git clone https://github.com/jufrin01/videobelajar-react.git
    cd videobelajar-react
