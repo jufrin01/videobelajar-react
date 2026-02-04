@@ -9,7 +9,7 @@ const heroBg = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=8
 const newsletterBg = "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2574&auto=format&fit=crop";
 
 const Home = () => {
-    const navigate = useNavigate(); // 2. INISIALISASI NAVIGATE
+    const navigate = useNavigate();
 
     const [activeTab, setActiveTab] = useState("Semua Kelas");
     const [currentPage, setCurrentPage] = useState(1);
@@ -61,10 +61,11 @@ const Home = () => {
         }
     };
 
-    // 3. FUNGSI HANDLER KLIK KE CHECKOUT
+    // --- [PERBAIKAN] HANDLER KLIK KE DETAIL KELAS ---
     const handleCourseClick = (courseId) => {
-        // Arahkan ke halaman checkout dengan ID kursus
-        navigate(`/checkout/${courseId}`);
+        // Arahkan ke halaman Detail Kelas (Product Page)
+        // Dari sana baru user bisa klik "Beli" untuk ke Checkout
+        navigate(`/course/${courseId}`);
     };
 
     return (
@@ -115,14 +116,14 @@ const Home = () => {
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {currentCourses.map((course) => (
-                                // 4. WRAPPER KLIK KE CHECKOUT
+                                // Wrapper Klik
                                 <div
                                     key={course.id}
                                     onClick={() => handleCourseClick(course.id)}
                                     className="cursor-pointer group"
                                 >
                                     <CourseCard
-                                        id={course.id} // Tetap kirim ID props
+                                        id={course.id}
                                         img={course.image}
                                         title={course.title}
                                         desc={course.description}

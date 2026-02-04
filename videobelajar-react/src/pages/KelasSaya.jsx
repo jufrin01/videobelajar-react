@@ -109,7 +109,7 @@ const KelasSaya = () => {
                                                         <div className="flex flex-col sm:flex-row gap-3">
                                                             {/* Tombol Sertifikat */}
                                                             <Link
-                                                                to={`/certificate/${course.id}`}
+                                                                to={`/sertifikat/${course.id}`}
                                                                 className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-bold rounded-lg transition-colors text-center flex items-center justify-center gap-2 flex-1"
                                                             >
                                                                 <i className="fa-solid fa-certificate"></i> Lihat Sertifikat

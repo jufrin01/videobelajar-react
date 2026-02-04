@@ -1,11 +1,12 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from './pages/Home';
 import Kategori from './pages/Kategori';
-import DetailKelas from './pages/DetailKelas';
-import Checkout from './pages/Checkout';
+import DetailProduct from './pages/DetailProduct.jsx';
+import Checkout from './pages/Checkout'; // Halaman Checkout
 import PaymentPage from './pages/PaymentPage';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentPending from './pages/PaymentPending';
@@ -19,25 +20,58 @@ function App() {
     return (
         <Router>
             <Routes>
-                {/* 1. Redirect Otomatis: Jika buka root (/) langsung lempar ke Login */}
-                <Route path="/" element={<Navigate to="/login" replace />} />
+                {/* --- 1. PUBLIC ROUTES (BISA AKSES TANPA LOGIN) --- */}
+
+                <Route path="/" element={<Home />} />
+                <Route path="/home" element={<Home />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/home" element={<Home />} />
                 <Route path="/kategori" element={<Kategori />} />
-                <Route path="/course/:id" element={<DetailKelas />} />
-                <Route path="/checkout/:id" element={<Checkout />} />
-                <Route path="/payment/:id" element={<PaymentPage />} />
-                <Route path="/payment-success" element={<PaymentSuccess />} />
-                <Route path="/payment-pending" element={<PaymentPending />} />
-                <Route path="/pesanan-saya" element={<PesananSaya />} />
-                <Route path="/kelas-saya" element={<KelasSaya />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/learn/:id" element={<ClassDetail />} />
-                <Route path="/certificate/:id" element={<Certificate />} />
 
-                {/* Opsional: Jika user iseng ketik url sembarangan, balikin ke Login */}
-                <Route path="*" element={<Navigate to="/login" replace />} />
+                {/* Landing Page Kelas (Publik) */}
+                <Route path="/course/:id" element={<DetailProduct />} />
+
+                {/* [PERUBAHAN] Checkout sekarang PUBLIK (Tidak di-protect) */}
+                <Route path="/checkout/:id" element={<Checkout />} />
+
+                {/* --- 2. PROTECTED ROUTES (WAJIB LOGIN) --- */}
+                {/* Halaman Pembayaran & User Dashboard tetap dilindungi */}
+
+                <Route path="/payment/:id" element={
+                    <ProtectedRoute><PaymentPage /></ProtectedRoute>
+                } />
+
+                <Route path="/payment-success" element={
+                    <ProtectedRoute><PaymentSuccess /></ProtectedRoute>
+                } />
+
+                <Route path="/payment-pending" element={
+                    <ProtectedRoute><PaymentPending /></ProtectedRoute>
+                } />
+
+                <Route path="/pesanan-saya" element={
+                    <ProtectedRoute><PesananSaya /></ProtectedRoute>
+                } />
+
+                <Route path="/kelas-saya" element={
+                    <ProtectedRoute><KelasSaya /></ProtectedRoute>
+                } />
+
+                <Route path="/profile" element={
+                    <ProtectedRoute><Profile /></ProtectedRoute>
+                } />
+
+                {/* Halaman Belajar & Sertifikat Tetap Private */}
+                <Route path="/learn/:id" element={
+                    <ProtectedRoute><ClassDetail /></ProtectedRoute>
+                } />
+
+                <Route path="/sertifikat/:id" element={
+                    <ProtectedRoute><Certificate /></ProtectedRoute>
+                } />
+
+                {/* Fallback Route */}
+                <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </Router>
     );
