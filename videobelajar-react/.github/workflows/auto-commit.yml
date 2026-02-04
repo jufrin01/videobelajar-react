@@ -1,0 +1,33 @@
+name: Daily Auto Commit Bot
+
+on:
+  # Jalan setiap hari jam 00:00 UTC (sekitar jam 7 pagi WIB)
+  schedule:
+    - cron: "0 0 * * *"
+
+  # Bisa dijalankan manual juga lewat tab Actions
+  workflow_dispatch:
+
+jobs:
+  auto_commit:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # Memberi izin bot untuk nulis/push ke repo
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Update date file
+        run: |
+          # Membuat/Update file teks kecil agar ada perubahan
+          echo "Last bot run: $(date)" > bot-activity.log
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add bot-activity.log
+          git commit -m "🤖 Bot: Daily green dot activity"
+          git push
