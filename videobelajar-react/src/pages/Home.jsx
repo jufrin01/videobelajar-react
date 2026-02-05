@@ -61,10 +61,7 @@ const Home = () => {
         }
     };
 
-    // --- [PERBAIKAN] HANDLER KLIK KE DETAIL KELAS ---
     const handleCourseClick = (courseId) => {
-        // Arahkan ke halaman Detail Kelas (Product Page)
-        // Dari sana baru user bisa klik "Beli" untuk ke Checkout
         navigate(`/course/${courseId}`);
     };
 
@@ -76,13 +73,15 @@ const Home = () => {
                 <div className="absolute inset-0 bg-black/60"></div>
                 <div className="relative z-10 text-center px-6 max-w-5xl mx-auto">
                     <h1 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">
-                        Revolusi Pembelajaran: Temukan <br className="hidden md:block" />
+                        Revolusi Pembelajaran: Temukan <br className="hidden md:block"/>
                         Ilmu Baru melalui Platform Video Interaktif!
                     </h1>
                     <p className="text-gray-200 text-sm md:text-lg mb-8 max-w-3xl mx-auto leading-relaxed">
-                        Temukan ilmu baru yang menarik dan mendalam melalui koleksi video pembelajaran berkualitas tinggi.
+                        Temukan ilmu baru yang menarik dan mendalam melalui koleksi video pembelajaran berkualitas
+                        tinggi.
                     </p>
-                    <button className="bg-[#FF5722] hover:bg-[#e64a19] text-white font-bold py-3 px-8 rounded-lg transition-all shadow-lg transform hover:scale-105">
+                    <button
+                        className="bg-[#3ECF4C] hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg transition-all shadow-lg transform hover:scale-105">
                         Temukan Video Course untuk Dipelajari!
                     </button>
                 </div>

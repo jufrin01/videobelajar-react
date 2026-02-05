@@ -299,15 +299,15 @@ const DetailProduct = () => {
                 </div>
 
                 {/* --- MOBILE STICKY BUTTON --- */}
-                <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 z-40 flex justify-between items-center shadow-[0_-5px_10px_rgba(0,0,0,0.05)]">
-                    <div className="flex flex-col">
-                        <span className="text-gray-400 text-xs line-through">Rp 750K</span>
-                        <span className="text-[#3ECF4C] font-bold text-lg">Rp 300K</span>
-                    </div>
-                    <button onClick={handleBuy} className="bg-[#3ECF4C] text-white font-bold py-2.5 px-8 rounded-lg shadow-sm">
-                        Beli Sekarang
-                    </button>
-                </div>
+                {/*<div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 z-40 flex justify-between items-center shadow-[0_-5px_10px_rgba(0,0,0,0.05)]">*/}
+                {/*    <div className="flex flex-col">*/}
+                {/*        <span className="text-gray-400 text-xs line-through">Rp 750K</span>*/}
+                {/*        <span className="text-[#3ECF4C] font-bold text-lg">Rp 300K</span>*/}
+                {/*    </div>*/}
+                {/*    <button onClick={handleBuy} className="bg-[#3ECF4C] text-white font-bold py-2.5 px-8 rounded-lg shadow-sm">*/}
+                {/*        Beli Sekarang*/}
+                {/*    </button>*/}
+                {/*</div>*/}
 
             </div>
         </Layout>
