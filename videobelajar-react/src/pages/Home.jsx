@@ -1,9 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useContext } from 'react'; // 1. Tambahkan useContext
 import CourseCard from '../components/CourseCard';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
-import { coursesData } from '../data/coursesData';
 import { useNavigate } from 'react-router-dom';
+
+// 2. Ganti import data statis menjadi import Context
+import { CourseContext } from '../context/CourseContext';
 
 const heroBg = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2671&auto=format&fit=crop";
 const newsletterBg = "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2574&auto=format&fit=crop";
@@ -11,35 +13,42 @@ const newsletterBg = "https://images.unsplash.com/photo-1557804506-669a67965ba0?
 const Home = () => {
     const navigate = useNavigate();
 
+    // 3. Ambil data 'courses' dari Context (sumber yang sama dengan Admin)
+    const { courses } = useContext(CourseContext);
+
     const [activeTab, setActiveTab] = useState("Semua Kelas");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 9;
 
     const categories = ["Semua Kelas", "Teknologi", "Bisnis", "Desain", "Pemasaran", "Pengembangan Diri"];
 
+    // 4. Ubah logika filter untuk menggunakan data 'courses' dari Context
     const filteredCourses = useMemo(() => {
+        // Jika data belum ada, return array kosong
+        if (!courses) return [];
+
         if (activeTab === "Semua Kelas") {
-            return coursesData;
+            return courses;
         }
 
-        return coursesData.filter(course => {
+        return courses.filter(course => {
             const cat = course.category;
             switch (activeTab) {
                 case "Teknologi":
-                    return ["Programming", "Data Science", "IT Security"].includes(cat);
+                    return ["Programming", "Data Science", "IT Security", "Teknologi"].includes(cat);
                 case "Bisnis":
-                    return ["Business", "Finance"].includes(cat);
+                    return ["Business", "Finance", "Bisnis"].includes(cat);
                 case "Desain":
-                    return ["UI/UX Design", "Creative"].includes(cat);
+                    return ["UI/UX Design", "Creative", "Desain"].includes(cat);
                 case "Pemasaran":
-                    return ["Marketing"].includes(cat);
+                    return ["Marketing", "Pemasaran"].includes(cat);
                 case "Pengembangan Diri":
-                    return ["Soft Skills", "Language"].includes(cat);
+                    return ["Soft Skills", "Language", "Pengembangan Diri"].includes(cat);
                 default:
                     return true;
             }
         });
-    }, [activeTab]);
+    }, [activeTab, courses]); // Tambahkan courses sebagai dependency
 
     // RESET HALAMAN KE 1 SAAT GANTI KATEGORI
     useEffect(() => {
@@ -126,11 +135,12 @@ const Home = () => {
                                         img={course.image}
                                         title={course.title}
                                         desc={course.description}
-                                        authorName={course.instructor.name}
-                                        authorRole={course.instructor.role}
-                                        authorImg={course.instructor.avatar}
-                                        rating={course.rating}
-                                        reviews={course.reviews}
+                                        // Pakai opsional chaining (?) jaga-jaga kalau datanya belum lengkap dari input Admin
+                                        authorName={course.instructor?.name || "Admin"}
+                                        authorRole={course.instructor?.role || "Tutor"}
+                                        authorImg={course.instructor?.avatar || `https://ui-avatars.com/api/?name=${course.instructor?.name || 'A'}`}
+                                        rating={course.rating || 0}
+                                        reviews={course.reviews || 0}
                                         price="Rp 300K"
                                     />
                                 </div>

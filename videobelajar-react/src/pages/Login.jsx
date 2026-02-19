@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import FormInput from '../components/FormInput'; // Import komponen Input
+import FormInput from '../components/FormInput';
 
 const Login = () => {
     const navigate = useNavigate();
@@ -11,82 +11,108 @@ const Login = () => {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
 
-    // Fungsi Handle Login
+    // Fungsi Handle Login (DENGAN SISTEM ROLE)
     const handleLogin = (e) => {
         e.preventDefault();
 
-        // DATA DUMMY (Simulasi Backend)
-        const validEmail = "jufrin@gmail.com";
-        const validPass = "123";
+        // --- SIMULASI DATABASE USER ---
+        const adminData = { email: "admin@gmail.com", pass: "123", role: "admin", name: "Pak Admin" };
+        const userData = { email: "user@gmail.com", pass: "123", role: "user", name: "Siswa Teladan" };
 
-        if (email === validEmail && password === validPass) {
-            // 1. Simpan data user ke LocalStorage (anggap token)
-            const userData = { name: "Jufrin Bima", email: validEmail };
-            localStorage.setItem("user", JSON.stringify(userData));
+        // Cek kecocokan
+        let loggedInUser = null;
 
-            // 2. Beri notif & Pindah ke Home
-            alert("✅ Login Sukses! Selamat datang.");
-            navigate("/home");
-            window.location.reload(); // Refresh agar Navbar mendeteksi perubahan
+        if (email === adminData.email && password === adminData.pass) {
+            loggedInUser = { name: adminData.name, email: adminData.email, role: adminData.role };
+        } else if (email === userData.email && password === userData.pass) {
+            loggedInUser = { name: userData.name, email: userData.email, role: userData.role };
+        } else if (email === "jufrin@gmail.com" && password === "123") {
+            // Menjaga login lama Anda tetap jalan sebagai USER
+            loggedInUser = { name: "Jufrin Bima", email: "jufrin@gmail.com", role: "user" };
+        }
+
+        // --- LOGIKA SETELAH CEK ---
+        if (loggedInUser) {
+            // 1. Simpan data user beserta 'role' ke LocalStorage
+            localStorage.setItem("user", JSON.stringify(loggedInUser));
+
+            // 2. Beri notif & Pindah Halaman sesuai Role
+            alert(`Login Sukses! Selamat datang, ${loggedInUser.name} (${loggedInUser.role.toUpperCase()})`);
+
+            // Jika admin arahkan langsung ke Dashboard Admin, jika user ke Home
+            if (loggedInUser.role === 'admin') {
+                navigate("/admin");
+            } else {
+                navigate("/home");
+            }
+
+            window.location.reload(); // Refresh agar Navbar & Route mendeteksi perubahan
         } else {
-            alert("❌ Login Gagal! Email atau Password salah.\n(Tips: Gunakan jufrin@gmail.com & 123)");
+            alert("❌ Login Gagal! Email atau Password salah.\n\n(Tips Akun Testing:\nAdmin = admin@gmail.com / 123\nUser = user@gmail.com / 123)");
         }
     };
 
     return (
         <>
             <Navbar />
+            <div className="min-h-[calc(100vh-80px)] flex items-center justify-center bg-gray-50/50 font-poppins px-4 py-10">
+                <div className="bg-white p-8 md:p-10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.08)] w-full max-w-[450px] border border-gray-100 animate-fade-in-up">
 
-            <div className="flex-1 flex justify-center items-center p-5 pb-20">
+                    {/* Header */}
+                    <div className="text-center mb-8">
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">Masuk ke Akun</h2>
+                        <p className="text-sm text-gray-500">Yuk, lanjutin belajarmu di videobelajar.</p>
+                    </div>
 
-                {/* KARTU LOGIN */}
-                <div className="bg-white w-full max-w-md p-8 md:p-10 rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 text-center">
+                    {/* Informasi Akun Demo */}
+                    <div className="mb-6 bg-blue-50 border border-blue-100 p-3 rounded-lg text-xs text-blue-700 font-medium text-center">
+                        <p>Demo Akun Admin: <b>admin@gmail.com</b> | Pass: <b>123</b></p>
+                        <p>Demo Akun User: <b>user@gmail.com</b> | Pass: <b>123</b></p>
+                    </div>
 
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Masuk ke Akun</h2>
-                    <p className="text-gray-400 text-sm mb-8">Yuk, lanjutin belajarmu di videobelajar.</p>
-
-                    <form onSubmit={handleLogin} className="text-left">
-
-                        {/* 1. Input Email (Pakai Komponen FormInput) */}
-                        <FormInput
-                            label="E-Mail"
-                            type="email"
-                            placeholder="nama@email.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                        />
-
-                        {/* 2. Input Password (Manual karena butuh Icon Mata) */}
+                    {/* Form */}
+                    <form onSubmit={handleLogin}>
+                        {/* Input Email */}
                         <div className="mb-5">
-                            <label className="block text-sm font-medium text-gray-600 mb-2">
-                                Kata Sandi <span className="text-red-500">*</span>
-                            </label>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">E-Mail</label>
+                            <FormInput
+                                type="email"
+                                placeholder="Masukkan E-Mail"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Input Kata Sandi */}
+                        <div className="mb-6 relative">
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Kata Sandi</label>
                             <div className="relative">
-                                <input
+                                <FormInput
                                     type={showPassword ? "text" : "password"}
-                                    className="w-full px-4 py-3 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
+                                    placeholder="Masukkan Kata Sandi"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    required
                                 />
-                                {/* Icon Mata */}
-                                <i
-                                    className={`fa-solid ${showPassword ? 'fa-eye' : 'fa-eye-slash'} absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer hover:text-gray-600`}
+                                <button
+                                    type="button"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
                                     onClick={() => setShowPassword(!showPassword)}
-                                ></i>
+                                >
+                                    <i className={`fa-regular ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-lg`}></i>
+                                </button>
+                            </div>
+                            <div className="flex justify-end mt-2">
+                                <a href="#" className="text-sm font-semibold text-gray-500 hover:text-green-600 transition-colors">Lupa Kata Sandi?</a>
                             </div>
                         </div>
 
-                        <a href="#" className="block text-right text-sm font-medium text-gray-500 mb-6 hover:text-primary">Lupa Password?</a>
-
                         {/* Tombol Login */}
-                        <button type="submit" className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-green-600 transition-colors mb-4 shadow-sm">
+                        <button type="submit" className="w-full py-3 bg-[#3ECF4C] text-white font-semibold rounded-lg hover:bg-green-600 transition-colors mb-4 shadow-sm">
                             Masuk
                         </button>
 
                         {/* Tombol ke Register */}
-                        <Link to="/register" className="block w-full py-3 bg-secondary text-primary font-semibold rounded-lg text-center hover:bg-green-100 transition-colors">
+                        <Link to="/register" className="block w-full py-3 bg-[#e8fbe9] text-[#3ECF4C] font-semibold rounded-lg text-center hover:bg-green-100 transition-colors">
                             Daftar
                         </Link>
                     </form>
@@ -99,7 +125,7 @@ const Login = () => {
                     </div>
 
                     {/* Login Google */}
-                    <button className="w-full py-3 bg-white border border-gray-200 text-gray-600 font-medium rounded-lg flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors">
+                    <button className="w-full py-3 bg-white border border-gray-200 text-gray-600 font-medium rounded-lg flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors shadow-sm">
                         <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5" />
                         Masuk dengan Google
                     </button>
