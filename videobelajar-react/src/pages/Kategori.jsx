@@ -1,12 +1,17 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useContext } from 'react';
 import Layout from '../components/Layout';
 import CourseCard from '../components/CourseCard';
 import FilterGroup from '../components/FilterGroup';
 import CheckboxItem from '../components/CheckboxItem';
 import Pagination from '../components/Pagination';
-import { coursesData } from '../data/coursesData';
+
+// IMPORT CONTEXT (Sumber data Firebase)
+import { CourseContext } from '../context/CourseContext';
 
 const Kategori = () => {
+    // 1. AMBIL DATA DARI FIREBASE
+    const { courses } = useContext(CourseContext);
+
     // STATE FILTER & SEARCH
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCategories, setSelectedCategories] = useState([]);
@@ -18,42 +23,53 @@ const Kategori = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 9; // Menampilkan 9 kursus per halaman
 
-    // 2. DATA TRANSFORMATION / MAPPING
+    // 2. DATA TRANSFORMATION / MAPPING DARI FIREBASE
     const enrichedData = useMemo(() => {
-        return coursesData.map(course => {
-            let filterCat = "Lainnya";
-            const c = course.category;
-            if (["Marketing"].includes(c)) filterCat = "Pemasaran";
-            if (["UI/UX Design", "Data Science", "IT Security", "Programming"].includes(c)) filterCat = "Digital & Teknologi";
-            if (["Soft Skills", "Language", "Creative"].includes(c)) filterCat = "Pengembangan Diri";
-            if (["Business", "Finance"].includes(c)) filterCat = "Bisnis Manajemen";
+        // Guard clause: Jika data dari Firebase belum siap atau kosong
+        if (!courses || courses.length === 0) return [];
 
-            const isFree = course.id % 5 === 0;
-            const durationType = course.totalModules > 15 ? "Lebih dari 8 Jam" : (course.totalModules > 8 ? "4 - 8 Jam" : "Kurang dari 4 Jam");
+        return courses.map(course => {
+            let filterCat = "Lainnya";
+            const c = course.category || "";
+
+            // Mapping kategori dari input Admin ke filter sidebar
+            if (["Marketing", "Pemasaran"].includes(c)) filterCat = "Pemasaran";
+            if (["UI/UX Design", "Data Science", "IT Security", "Programming", "Teknologi", "IT & Software"].includes(c)) filterCat = "Digital & Teknologi";
+            if (["Soft Skills", "Language", "Creative", "Pengembangan Diri", "Desain"].includes(c)) filterCat = "Pengembangan Diri";
+            if (["Business", "Finance", "Bisnis"].includes(c)) filterCat = "Bisnis Manajemen";
+
+            // Menggunakan harga asli dari Firebase
+            const priceVal = Number(course.price) || 0;
+            const isFree = priceVal === 0;
+
+            // Dummy logic durasi karena di Firebase belum ada input durasi spesifik
+            const totalMod = course.totalModules || 0;
+            const durationType = totalMod > 15 ? "Lebih dari 8 Jam" : (totalMod > 8 ? "4 - 8 Jam" : "Kurang dari 4 Jam");
 
             return {
                 ...course,
                 filterCategory: filterCat,
                 priceType: isFree ? "Gratis" : "Berbayar",
-                priceDisplay: isFree ? "Gratis" : "Rp 300K",
+                priceDisplay: isFree ? "Gratis" : `Rp ${priceVal.toLocaleString('id-ID')}`,
                 durationFilter: durationType
             };
         });
-    }, []);
+    }, [courses]); // Dependency diubah menjadi courses dari context
 
     // 3. LOGIKA FILTERING UTAMA
     const filteredCourses = useMemo(() => {
         let result = enrichedData.filter((course) => {
-            const matchSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchSearch = course.title?.toLowerCase().includes(searchTerm.toLowerCase());
             const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(course.filterCategory);
             const matchPrice = selectedPrices.length === 0 || selectedPrices.includes(course.priceType);
             const matchDuration = selectedDurations.length === 0 || selectedDurations.includes(course.durationFilter);
             return matchSearch && matchCategory && matchPrice && matchDuration;
         });
 
-        if (sortOption === "low") result.sort((a, b) => (a.priceType === "Gratis" ? -1 : 1));
-        else if (sortOption === "high") result.sort((a, b) => (a.priceType === "Berbayar" ? -1 : 1));
-        else if (sortOption === "rating") result.sort((a, b) => b.rating - a.rating);
+        // Sorting berdasarkan harga riil dari Firebase
+        if (sortOption === "low") result.sort((a, b) => (a.price || 0) - (b.price || 0));
+        else if (sortOption === "high") result.sort((a, b) => (b.price || 0) - (a.price || 0));
+        else if (sortOption === "rating") result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
 
         return result;
     }, [searchTerm, selectedCategories, selectedPrices, selectedDurations, sortOption, enrichedData]);
@@ -84,8 +100,6 @@ const Kategori = () => {
         setCurrentPage(1);
     };
 
-    //const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
     return (
         <Layout>
             <div className="w-full max-w-7xl mx-auto px-6 py-12 font-poppins">
@@ -102,7 +116,7 @@ const Kategori = () => {
                     <div className="w-full lg:w-1/4 h-fit bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="font-bold text-gray-800">Filter</h3>
-                            <button onClick={handleReset} className="text-[#FF5722] text-sm font-semibold hover:underline">Reset</button>
+                            <button onClick={handleReset} className="text-[#3ECF4C] text-sm font-semibold hover:underline">Reset</button>
                         </div>
 
                         {/* Filter: Bidang Studi (Kategori Luas) */}
@@ -156,7 +170,7 @@ const Kategori = () => {
                                     <select
                                         value={sortOption}
                                         onChange={(e) => setSortOption(e.target.value)}
-                                        className="appearance-none bg-white border border-gray-200 text-gray-700 py-3 px-4 pr-8 rounded-lg focus:outline-none focus:border-green-500 text-sm cursor-pointer"
+                                        className="appearance-none bg-white border border-gray-200 text-gray-700 py-3 px-4 pr-8 rounded-lg focus:outline-none focus:border-[#3ECF4C] focus:ring-1 focus:ring-[#3ECF4C] text-sm cursor-pointer"
                                     >
                                         <option value="default">Urutkan</option>
                                         <option value="low">Harga Terendah</option>
@@ -175,7 +189,7 @@ const Kategori = () => {
                                         placeholder="Cari Kelas..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full pl-4 pr-10 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-green-500 text-sm"
+                                        className="w-full pl-4 pr-10 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#3ECF4C] focus:ring-1 focus:ring-[#3ECF4C] text-sm"
                                     />
                                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-400">
                                         <i className="fa-solid fa-magnifying-glass"></i>
@@ -190,35 +204,39 @@ const Kategori = () => {
                                 {currentItems.map((course) => (
                                     <CourseCard
                                         key={course.id}
-                                        id={course.id} // ID Penting untuk Link
-                                        img={course.image}
+                                        id={course.id} // ID dari Firebase (String)
+                                        img={course.image || course.imageUrl}
                                         title={course.title}
                                         desc={course.description}
-                                        authorName={course.instructor.name}
-                                        authorRole={course.instructor.role}
-                                        authorImg={course.instructor.avatar}
-                                        rating={course.rating}
-                                        reviews={course.reviews}
-                                        price={course.priceDisplay} // Menggunakan harga yang sudah dimapping
+                                        // Optional chaining (?) untuk menghindari error jika data belum lengkap
+                                        authorName={course.instructor?.name || "Instruktur"}
+                                        authorRole={course.instructor?.role || "Tutor"}
+                                        authorImg={course.instructor?.avatar || `https://ui-avatars.com/api/?name=${course.instructor?.name || 'A'}`}
+                                        rating={course.rating || 0}
+                                        reviews={course.reviews || 0}
+                                        price={course.priceDisplay} // Menampilkan harga yang sudah dimapping
                                     />
                                 ))}
                             </div>
                         ) : (
-                            <div className="text-center py-20">
+                            <div className="text-center py-20 border border-dashed border-gray-200 rounded-xl bg-gray-50">
                                 <i className="fa-regular fa-folder-open text-6xl text-gray-300 mb-4"></i>
                                 <p className="text-gray-500 font-medium">Kelas tidak ditemukan.</p>
-                                <button onClick={handleReset} className="text-[#FF5722] mt-2 hover:underline">Reset Filter</button>
+                                <button onClick={handleReset} className="text-[#3ECF4C] mt-2 font-bold hover:underline">Reset Filter</button>
                             </div>
                         )}
 
-                        <Pagination
-                            currentPage={currentPage}
-                            totalPages={totalPages}
-                            onPageChange={(page) => {
-                                setCurrentPage(page);
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                        />
+                        {/* KOMPONEN PAGINATION */}
+                        {totalPages > 1 && (
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={(page) => {
+                                    setCurrentPage(page);
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

@@ -1,27 +1,34 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { coursesData } from '../data/coursesData';
+
+// 1. IMPORT FIREBASE CONTEXT (Bukan Data Statis)
+import { CourseContext } from '../context/CourseContext';
 
 const DetailProduct = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
+    // 2. PANGGIL DATA DARI FIREBASE
+    const { courses } = useContext(CourseContext);
+
     // State untuk Accordion Kurikulum
     const [openModuleIndex, setOpenModuleIndex] = useState(0);
 
-    //Ambil Data Kursus (Pastikan ID berupa angka)
+    // 3. AMBIL DATA KURSUS (HAPUS parseInt KARENA ID FIREBASE BERUPA STRING)
     const course = useMemo(() => {
-        return coursesData.find(c => c.id === parseInt(id));
-    }, [id]);
+        if (!courses) return null;
+        return courses.find(c => c.id === id);
+    }, [courses, id]);
 
-    // Ambil Rekomendasi Kelas (Kecuali kelas ini)
+    // 4. AMBIL REKOMENDASI KELAS LAINNYA
     const relatedCourses = useMemo(() => {
-        return coursesData
-            .filter(c => c.id !== parseInt(id)) // Buang kelas yang sedang dibuka
-            .sort(() => 0.5 - Math.random())    // Acak urutan
-            .slice(0, 3);                       // Ambil 3
-    }, [id]);
+        if (!courses) return [];
+        return courses
+            .filter(c => c.id !== id)
+            .sort(() => 0.5 - Math.random())
+            .slice(0, 3);
+    }, [courses, id]);
 
     // Handle Tombol Beli
     const handleBuy = () => {
@@ -39,12 +46,12 @@ const DetailProduct = () => {
         setOpenModuleIndex(openModuleIndex === index ? -1 : index);
     };
 
-
+    // LOADING ATAU TIDAK KETEMU
     if (!course) {
         return (
             <Layout>
                 <div className="min-h-screen flex flex-col items-center justify-center font-poppins">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Kelas tidak ditemukan</h2>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Mencari kelas... / Kelas tidak ditemukan</h2>
                     <button onClick={() => navigate('/')} className="text-[#3ECF4C] font-bold hover:underline">
                         Kembali ke Beranda
                     </button>
@@ -53,9 +60,16 @@ const DetailProduct = () => {
         );
     }
 
-    // Helper: Hitung total durasi / materi (Opsional)
-    const totalVideos = course.modules.reduce((acc, mod) => acc + mod.items.filter(i => i.type === 'video').length, 0);
-    const totalDocs = course.modules.reduce((acc, mod) => acc + mod.items.filter(i => i.type === 'doc').length, 0);
+    // --- HELPER UNTUK TAMPILAN DINAMIS ---
+    // 1. Menghitung jumlah video dan dokumen dengan aman
+    const totalVideos = (course.modules || []).reduce((acc, mod) => acc + (mod.items || []).filter(i => i.type === 'video').length, 0);
+    const totalDocs = (course.modules || []).reduce((acc, mod) => acc + (mod.items || []).filter(i => i.type === 'doc').length, 0);
+
+    // 2. Format Harga Dinamis
+    const priceVal = Number(course.price) || 0;
+    const isFree = priceVal === 0;
+    const priceDisplay = isFree ? "Gratis" : `Rp ${priceVal.toLocaleString('id-ID')}`;
+    const originalPriceDisplay = isFree ? "" : `Rp ${(priceVal + 450000).toLocaleString('id-ID')}`; // Logika diskon UI
 
     return (
         <Layout>
@@ -63,14 +77,13 @@ const DetailProduct = () => {
 
                 {/* --- 1. HERO SECTION (Gelap) --- */}
                 <div className="bg-[#1C1D20] text-white pt-12 pb-16 relative overflow-hidden">
-                    {/* Background Pattern */}
                     <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
 
                     <div className="max-w-7xl mx-auto px-5 md:px-10 relative z-10">
                         {/* Breadcrumb */}
                         <div className="text-xs text-gray-400 mb-6 flex items-center gap-2">
                             <span className="cursor-pointer hover:text-white" onClick={()=>navigate('/')}>Beranda</span> /
-                            <span className="cursor-pointer hover:text-white" onClick={()=>navigate('/kategori')}>{course.category}</span> /
+                            <span className="cursor-pointer hover:text-white" onClick={()=>navigate('/kategori')}>{course.category || "Kategori"}</span> /
                             <span className="text-white font-medium truncate max-w-[200px]">{course.title}</span>
                         </div>
 
@@ -87,10 +100,10 @@ const DetailProduct = () => {
                             <div className="flex items-center gap-2 text-sm">
                                 <div className="flex text-yellow-400">
                                     {[...Array(5)].map((_, i) => (
-                                        <i key={i} className={`fa-solid fa-star ${i < Math.floor(course.rating) ? '' : 'text-gray-600'}`}></i>
+                                        <i key={i} className={`fa-solid fa-star ${i < Math.floor(course.rating || 0) ? '' : 'text-gray-600'}`}></i>
                                     ))}
                                 </div>
-                                <span className="font-bold text-white">{course.rating} ({course.reviews})</span>
+                                <span className="font-bold text-white">{course.rating || 0} ({course.reviews || 0})</span>
                             </div>
                         </div>
                     </div>
@@ -115,12 +128,11 @@ const DetailProduct = () => {
                             <section>
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">Belajar bersama Tutor Profesional</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* Tutor Utama */}
                                     <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex gap-4 items-start">
-                                        <img src={course.instructor.avatar} alt="Tutor" className="w-12 h-12 rounded-full object-cover border border-gray-100" />
+                                        <img src={course.instructor?.avatar || `https://ui-avatars.com/api/?name=${course.instructor?.name || 'A'}`} alt="Tutor" className="w-12 h-12 rounded-full object-cover border border-gray-100" />
                                         <div>
-                                            <h4 className="font-bold text-sm text-gray-900">{course.instructor.name}</h4>
-                                            <p className="text-xs text-gray-500 mb-2">{course.instructor.role}</p>
+                                            <h4 className="font-bold text-sm text-gray-900">{course.instructor?.name || "Nama Tutor"}</h4>
+                                            <p className="text-xs text-gray-500 mb-2">{course.instructor?.role || "Tutor"}</p>
                                             <p className="text-xs text-gray-600 leading-relaxed">
                                                 Instruktur profesional berpengalaman yang siap membimbing Anda dalam {course.title}.
                                             </p>
@@ -147,14 +159,12 @@ const DetailProduct = () => {
                                                 {/* Isi Modul */}
                                                 {openModuleIndex === idx && (
                                                     <div className="p-4 space-y-3 bg-white animate-fade-in-down">
-                                                        {module.items.map((item, itemIdx) => (
+                                                        {(module.items || []).map((item, itemIdx) => (
                                                             <div key={itemIdx} className="flex justify-between text-sm text-gray-600 items-center">
                                                                 <div className="flex items-center gap-3">
-                                                                    {/* Ikon sesuai tipe */}
                                                                     {item.type === 'video' ? <i className="fa-regular fa-circle-play text-gray-400"></i> :
                                                                         item.type === 'quiz' ? <i className="fa-regular fa-clipboard-question text-gray-400"></i> :
                                                                             <i className="fa-regular fa-file-lines text-gray-400"></i>}
-
                                                                     <span>{item.title}</span>
                                                                 </div>
                                                                 <span className="text-gray-400 text-xs shrink-0">{item.time || "5 Menit"}</span>
@@ -165,7 +175,7 @@ const DetailProduct = () => {
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="p-5 text-center text-gray-500 text-sm">Belum ada modul yang tersedia.</div>
+                                        <div className="p-5 text-center text-gray-500 text-sm">Modul sedang disiapkan oleh Tutor.</div>
                                     )}
                                 </div>
                             </section>
@@ -211,9 +221,13 @@ const DetailProduct = () => {
                                 </h3>
 
                                 <div className="flex items-center gap-3 mb-1">
-                                    <span className="text-[#3ECF4C] font-bold text-2xl">Rp 300K</span>
-                                    <span className="text-gray-400 text-sm line-through">Rp 750K</span>
-                                    <span className="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded">Diskon 60%</span>
+                                    <span className="text-[#3ECF4C] font-bold text-2xl">{priceDisplay}</span>
+                                    {originalPriceDisplay && (
+                                        <>
+                                            <span className="text-gray-400 text-sm line-through">{originalPriceDisplay}</span>
+                                            <span className="bg-yellow-400 text-white text-[10px] font-bold px-2 py-0.5 rounded">Diskon</span>
+                                        </>
+                                    )}
                                 </div>
                                 <p className="text-blue-500 text-xs font-semibold mb-6 cursor-pointer hover:underline">Penawaran berakhir sebentar lagi!</p>
 
@@ -228,10 +242,10 @@ const DetailProduct = () => {
                                     <h4 className="font-bold text-gray-900 text-sm">Kelas Ini Sudah Termasuk</h4>
                                     <ul className="grid grid-cols-2 gap-3">
                                         <li className="flex items-center gap-2 text-xs text-gray-600">
-                                            <i className="fa-solid fa-video text-gray-400 w-4"></i> {totalVideos > 0 ? totalVideos : '12'} Video
+                                            <i className="fa-solid fa-video text-gray-400 w-4"></i> {totalVideos > 0 ? totalVideos : '0'} Video
                                         </li>
                                         <li className="flex items-center gap-2 text-xs text-gray-600">
-                                            <i className="fa-solid fa-file-lines text-gray-400 w-4"></i> {totalDocs > 0 ? totalDocs : '5'} Dokumen
+                                            <i className="fa-solid fa-file-lines text-gray-400 w-4"></i> {totalDocs > 0 ? totalDocs : '0'} Dokumen
                                         </li>
                                         <li className="flex items-center gap-2 text-xs text-gray-600">
                                             <i className="fa-solid fa-file-pen text-gray-400 w-4"></i> Pretest
@@ -260,54 +274,50 @@ const DetailProduct = () => {
                 </div>
 
                 {/* --- 3. VIDEO PEMBELAJARAN TERKAIT (SINKRON DATA) --- */}
-                <div className="bg-[#FFFDF3] py-10 border-t border-gray-100">
-                    <div className="max-w-7xl mx-auto px-5 md:px-10">
-                        <h3 className="text-xl font-bold text-gray-900 mb-2">Video Pembelajaran Terkait Lainnya</h3>
-                        <p className="text-gray-500 text-sm mb-6">Ekspansi Pengetahuan Anda dengan Rekomendasi Spesial Kami!</p>
+                {relatedCourses.length > 0 && (
+                    <div className="bg-[#FFFDF3] py-10 border-t border-gray-100">
+                        <div className="max-w-7xl mx-auto px-5 md:px-10">
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">Video Pembelajaran Terkait Lainnya</h3>
+                            <p className="text-gray-500 text-sm mb-6">Ekspansi Pengetahuan Anda dengan Rekomendasi Spesial Kami!</p>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {relatedCourses.map((relCourse) => (
-                                <div
-                                    key={relCourse.id}
-                                    onClick={() => navigate(`/course/${relCourse.id}`)} // Navigate ke detail course lain
-                                    className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
-                                >
-                                    <div className="aspect-video bg-gray-200 relative shrink-0">
-                                        <img src={relCourse.image} alt={relCourse.title} className="w-full h-full object-cover" />
-                                    </div>
-                                    <div className="p-4 flex flex-col flex-1">
-                                        <h4 className="font-bold text-gray-900 text-sm mb-2 line-clamp-2">{relCourse.title}</h4>
-                                        <p className="text-xs text-gray-500 mb-3 line-clamp-2 flex-1">{relCourse.description}</p>
-
-                                        <div className="flex items-center gap-2 mb-3 mt-auto">
-                                            <img src={relCourse.instructor.avatar} alt="Instructor" className="w-6 h-6 rounded-full" />
-                                            <span className="text-xs font-bold text-gray-700 truncate">{relCourse.instructor.name}</span>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {relatedCourses.map((relCourse) => (
+                                    <div
+                                        key={relCourse.id}
+                                        onClick={() => {
+                                            navigate(`/course/${relCourse.id}`);
+                                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        }}
+                                        className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
+                                    >
+                                        <div className="aspect-video bg-gray-200 relative shrink-0">
+                                            <img src={relCourse.image || relCourse.imageUrl} alt={relCourse.title} className="w-full h-full object-cover" />
                                         </div>
+                                        <div className="p-4 flex flex-col flex-1">
+                                            <h4 className="font-bold text-gray-900 text-sm mb-2 line-clamp-2">{relCourse.title}</h4>
+                                            <p className="text-xs text-gray-500 mb-3 line-clamp-2 flex-1">{relCourse.description}</p>
 
-                                        <div className="flex justify-between items-center mt-2">
-                                            <div className="flex text-yellow-400 text-[10px] gap-0.5 items-center">
-                                                <i className="fa-solid fa-star"></i>
-                                                <span className="text-gray-500 ml-1 font-medium">{relCourse.rating} ({relCourse.reviews})</span>
+                                            <div className="flex items-center gap-2 mb-3 mt-auto">
+                                                <img src={relCourse.instructor?.avatar || `https://ui-avatars.com/api/?name=${relCourse.instructor?.name || 'A'}`} alt="Instructor" className="w-6 h-6 rounded-full" />
+                                                <span className="text-xs font-bold text-gray-700 truncate">{relCourse.instructor?.name || "Instruktur"}</span>
                                             </div>
-                                            <span className="text-[#3ECF4C] font-bold text-sm">Rp 300K</span>
+
+                                            <div className="flex justify-between items-center mt-2">
+                                                <div className="flex text-yellow-400 text-[10px] gap-0.5 items-center">
+                                                    <i className="fa-solid fa-star"></i>
+                                                    <span className="text-gray-500 ml-1 font-medium">{relCourse.rating || 0} ({relCourse.reviews || 0})</span>
+                                                </div>
+                                                <span className="text-[#3ECF4C] font-bold text-sm">
+                                                    {Number(relCourse.price) === 0 ? "Gratis" : `Rp ${Number(relCourse.price).toLocaleString('id-ID')}`}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
-
-                {/* --- MOBILE STICKY BUTTON --- */}
-                {/*<div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 z-40 flex justify-between items-center shadow-[0_-5px_10px_rgba(0,0,0,0.05)]">*/}
-                {/*    <div className="flex flex-col">*/}
-                {/*        <span className="text-gray-400 text-xs line-through">Rp 750K</span>*/}
-                {/*        <span className="text-[#3ECF4C] font-bold text-lg">Rp 300K</span>*/}
-                {/*    </div>*/}
-                {/*    <button onClick={handleBuy} className="bg-[#3ECF4C] text-white font-bold py-2.5 px-8 rounded-lg shadow-sm">*/}
-                {/*        Beli Sekarang*/}
-                {/*    </button>*/}
-                {/*</div>*/}
+                )}
 
             </div>
         </Layout>
