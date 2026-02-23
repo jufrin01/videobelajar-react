@@ -1,9 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
-import { coursesData as initialData } from '../data/coursesData.js';
-
-// 1. IMPORT FIREBASE FIRESTORE
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase/firebase'; // File yg  tadi kita buat
+import axios from 'axios';
 
 export const CourseContext = createContext();
 
@@ -11,98 +7,95 @@ export const CourseProvider = ({ children }) => {
     const [courses, setCourses] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Referensi ke koleksi (tabel) 'courses' di Firestore
-    const coursesCollectionRef = collection(db, "courses");
+    // Base URL dari Realtime Database kamu
+    const BASE_URL = 'https://videobelajarweb-default-rtdb.asia-southeast1.firebasedatabase.app';
+    const COURSES_URL = `${BASE_URL}/courses.json`;
 
     // ==========================================
-    // 1. GET DATA DARI FIRESTORE SAAT APLIKASI DIBUKA
+    // 1. GET DATA DARI REALTIME DATABASE (AXIOS)
     // ==========================================
     const fetchCourses = async () => {
         setLoading(true);
         try {
-            const data = await getDocs(coursesCollectionRef);
-            const formattedData = data.docs.map((doc) => ({
-                ...doc.data(),
-                id: doc.id // ID unik dari Firestore (berupa string seperti "a1b2c3d4")
-            }));
+            const response = await axios.get(COURSES_URL);
+            const dataDariFirebase = response.data;
 
-            // Jika database kosong, pakai data awal (initialData)
-            if (formattedData.length === 0) {
-                setCourses(initialData);
-            } else {
-                setCourses(formattedData);
+            const formattedData = [];
+
+            // Jika ada data di Firebase, ubah Object menjadi Array
+            if (dataDariFirebase) {
+                for (const key in dataDariFirebase) {
+                    formattedData.push({
+                        id: key,
+                        ...dataDariFirebase[key]
+                    });
+                }
             }
+
+            // Set langsung data dari Firebase (jika kosong, akan otomatis jadi array kosong [])
+            setCourses(formattedData);
         } catch (error) {
-            console.error("Gagal mengambil data dari Firestore:", error);
-            // Fallback: Jika internet mati / Firebase error, pakai data awal
-            setCourses(initialData);
+            console.error("Gagal mengambil data dari Firebase:", error);
+            setCourses([]); // Pastikan tetap jadi array kosong jika error
         } finally {
             setLoading(false);
         }
     };
 
+    // Panggil fetch saat pertama kali aplikasi dimuat
     useEffect(() => {
         fetchCourses();
     }, []);
 
     // ==========================================
-    // 2. CREATE (TAMBAH DATA KE FIRESTORE)
+    // 2. ADD / CREATE (POST DATA KE DATABASE)
     // ==========================================
-    const addCourse = async (newCourseData) => {
+    const addCourse = async (newCourse) => {
         try {
-            const fullCourseData = {
-                ...newCourseData,
-                progress: 0,
-                totalModules: 0,
-                completedModules: 0,
-                rating: 0,
-                reviews: 0,
-                userReviews: [],
-                modules: [],
-                createdAt: new Date().toISOString()
-            };
+            const { id, ...courseDataTanpaId } = newCourse;
 
-            // Simpan ke Firestore
-            const docRef = await addDoc(coursesCollectionRef, fullCourseData);
+            const response = await axios.post(COURSES_URL, courseDataTanpaId);
+            const newId = response.data.name;
 
-            // Update state lokal
-            setCourses([...courses, { ...fullCourseData, id: docRef.id }]);
+            const courseWithNewId = { ...courseDataTanpaId, id: newId };
 
+            // Update tampilan layar (state lokal)
+            setCourses((prev) => [...prev, courseWithNewId]);
+            return newId;
         } catch (error) {
             console.error("Gagal menambah kelas:", error);
-            alert("Terjadi kesalahan saat menyimpan ke database.");
+            throw error; // Lempar error agar bisa ditangkap oleh AdminDashboard
         }
     };
 
     // ==========================================
-    // 3. UPDATE (EDIT DATA DI FIRESTORE)
+    // 3. UPDATE (PATCH DATA DI DATABASE)
     // ==========================================
     const updateCourse = async (id, updatedData) => {
         try {
-            // Kita skip update ke Firestore kalau ID-nya masih ID angka (bawaan dari coursesData statis)
-            if (typeof id === 'string') {
-                const courseDoc = doc(db, "courses", id);
-                await updateDoc(courseDoc, updatedData);
-            }
+            const itemUrl = `${BASE_URL}/courses/${id}.json`;
+            await axios.patch(itemUrl, updatedData);
 
+            // Update tampilan layar
             setCourses(courses.map(course =>
                 course.id === id ? { ...course, ...updatedData } : course
             ));
         } catch (error) {
             console.error("Gagal mengupdate kelas:", error);
+            throw error;
         }
     };
 
     // ==========================================
-    // 4. DELETE (HAPUS DATA DARI FIRESTORE)
+    // 4. DELETE (HAPUS DATA DARI DATABASE)
     // ==========================================
     const deleteCourse = async (id) => {
         if (window.confirm("Apakah Anda yakin ingin menghapus kelas ini secara permanen dari server?")) {
             try {
-                if (typeof id === 'string') {
-                    const courseDoc = doc(db, "courses", id);
-                    await deleteDoc(courseDoc);
-                }
+                const itemUrl = `${BASE_URL}/courses/${id}.json`;
+                await axios.delete(itemUrl); // Menghapus dari Firebase
+
+                // Hapus dari tampilan layar
                 setCourses(courses.filter(course => course.id !== id));
             } catch (error) {
                 console.error("Gagal menghapus kelas:", error);
@@ -110,14 +103,15 @@ export const CourseProvider = ({ children }) => {
         }
     };
 
-    const resetData = () => {
-        if(window.confirm("Reset data ke default? Ini hanya mereset tampilan lokal, tidak menghapus data di database.")) {
-            setCourses(initialData);
-        }
-    }
-
     return (
-        <CourseContext.Provider value={{ courses, loading, addCourse, updateCourse, deleteCourse, resetData, refreshData: fetchCourses }}>
+        <CourseContext.Provider value={{
+            courses,
+            loading,
+            addCourse,
+            updateCourse,
+            deleteCourse,
+            refreshData: fetchCourses
+        }}>
             {children}
         </CourseContext.Provider>
     );

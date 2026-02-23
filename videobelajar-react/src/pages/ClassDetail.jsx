@@ -1,22 +1,32 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useContext } from 'react';
 import LearningNavbar from '../components/LearningNavbar';
 import StickyFooter from '../components/StickyFooter';
 import Modal from '../components/Modal';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getCourseWithModules } from '../data/coursesData';
+
+// 1. IMPORT FIREBASE DAN CONTEXT
+import { CourseContext } from '../context/CourseContext';
+import { auth } from '../firebase/firebase';
 
 const ClassDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    // 1. GET DATA
-    const course = getCourseWithModules(id);
+    // 2. MENGAMBIL DATA DARI CONTEXT (FIREBASE)
+    const { courses, updateCourse } = useContext(CourseContext);
 
-    // Handle Data Not Found
+    // MENCARI DATA KELAS BERDASARKAN ID STRING
+    const course = useMemo(() => {
+        if (!courses || courses.length === 0) return null;
+        return courses.find(c => c.id === id);
+    }, [courses, id]);
+
+    // Handle Data Not Found atau Loading
     if (!course) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50">
-                <h2 className="text-xl font-bold text-gray-700">Data kelas tidak ditemukan.</h2>
+            <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50 font-poppins">
+                <i className="fa-solid fa-spinner fa-spin text-3xl text-[#3ECF4C]"></i>
+                <h2 className="text-xl font-bold text-gray-700">Memuat data kelas... / Kelas tidak ditemukan.</h2>
                 <button onClick={() => navigate('/kelas-saya')} className="text-white bg-[#3ECF4C] px-6 py-2 rounded-lg font-bold hover:bg-green-600 transition-colors">
                     Kembali ke Kelas Saya
                 </button>
@@ -24,15 +34,18 @@ const ClassDetail = () => {
         );
     }
 
-    // 2. SETUP ITEMS
+    // 3. SETUP ITEMS (MENCEGAH ERROR JIKA MODUL KOSONG)
+    const safeModules = course.modules || [];
+
     const allItems = useMemo(() => {
-        return course.modules.flatMap(group => group.items);
-    }, [course]);
+        return safeModules.flatMap(group => group.items || []);
+    }, [safeModules]);
 
     const [activeItemId, setActiveItemId] = useState(() => {
         const active = allItems.find(i => i.status === 'active');
         return active ? active.id : allItems[0]?.id;
     });
+
     const [openModuleIndex, setOpenModuleIndex] = useState(0);
 
     const currentIndex = allItems.findIndex(item => item.id === activeItemId);
@@ -48,11 +61,12 @@ const ClassDetail = () => {
 
     // --- STATE MODAL & HASIL ---
     const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [showResultModal, setShowResultModal] = useState(false);
 
-    // --- STATE REVIEW (BARU) ---
-    const [showReviewModal, setShowReviewModal] = useState(false); // <--- State Modal Review
-    const [userRating, setUserRating] = useState(0);               // <--- State Bintang
+    // --- STATE REVIEW ---
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [userRating, setUserRating] = useState(5); // Default 5 bintang
+    const [userComment, setUserComment] = useState("");
+    const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
     const [score, setScore] = useState(0);
     const [correctAnswersCount, setCorrectAnswersCount] = useState(0);
@@ -63,7 +77,7 @@ const ClassDetail = () => {
         setQuizStarted(false);
         setQuizFinished(false);
         setShowConfirmModal(false);
-        setShowReviewModal(false); // Reset modal review
+        setShowReviewModal(false);
         setCurrentQuestionIndex(0);
         setAnswers({});
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -82,12 +96,14 @@ const ClassDetail = () => {
             if (answers[idx] === q.correctAnswer) correctCount++;
         });
 
-        const finalScore = Math.round((correctCount / currentQuestions.length) * 100);
+        // Mencegah pembagian 0 jika pertanyaan kosong
+        const totalQ = currentQuestions.length || 1;
+        const finalScore = Math.round((correctCount / totalQ) * 100);
+
         setScore(finalScore);
         setCorrectAnswersCount(correctCount);
         setIsPassed(finalScore >= 60);
 
-        // Tampilkan Halaman Hasil
         setQuizFinished(true);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -100,17 +116,60 @@ const ClassDetail = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // Handler Submit Review
-    const handleSubmitReview = () => {
-        // Logika kirim review ke backend bisa ditaruh di sini
-        alert(`Terima kasih! Anda memberi rating ${userRating} Bintang.`);
-        setShowReviewModal(false);
-        setUserRating(0);
+    // 4. HANDLER SUBMIT REVIEW KE FIREBASE
+    const handleSubmitReview = async () => {
+        if (!userComment.trim()) {
+            return alert("Komentar review tidak boleh kosong!");
+        }
+
+        const currentUser = auth.currentUser || JSON.parse(localStorage.getItem("user"));
+        if (!currentUser) {
+            alert("Silakan login kembali untuk memberikan ulasan.");
+            return navigate('/login');
+        }
+
+        setIsSubmittingReview(true);
+
+        try {
+            // A. Siapkan data Review baru
+            const newReview = {
+                id: Date.now(),
+                name: currentUser.displayName || currentUser.name || currentUser.email.split('@')[0],
+                role: "Siswa",
+                rating: userRating,
+                comment: userComment,
+                avatar: currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.name || 'U'}&background=random`
+            };
+
+            const existingReviews = course.userReviews || [];
+            const updatedReviews = [...existingReviews, newReview];
+
+            // B. Hitung ulang rata-rata bintang
+            const totalRatingSum = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
+            const newAverageRating = (totalRatingSum / updatedReviews.length).toFixed(1);
+
+            // C. Kirim ke Firebase via CourseContext
+            await updateCourse(course.id, {
+                userReviews: updatedReviews,
+                rating: Number(newAverageRating),
+                reviews: updatedReviews.length
+            });
+
+            alert(`Terima kasih! Review ${userRating} Bintang Anda telah disimpan.`);
+            setShowReviewModal(false);
+            setUserRating(5);
+            setUserComment("");
+        } catch (error) {
+            console.error("Gagal mengirim ulasan:", error);
+            alert("Terjadi kesalahan saat menyimpan review.");
+        } finally {
+            setIsSubmittingReview(false);
+        }
     };
 
     // --- HELPERS ---
     const getIcon = (type, status) => {
-        const isCompleted = status === 'completed' || course.progress === 100 || (activeItem.id === activeItemId && quizFinished && isPassed);
+        const isCompleted = status === 'completed' || course.progress === 100 || (activeItem?.id === activeItemId && quizFinished && isPassed);
         if (isCompleted) return <i className="fa-solid fa-circle-check text-[#3ECF4C] text-lg"></i>;
         const iconColor = status === 'active' ? 'text-[#3ECF4C]' : 'text-gray-400';
         switch(type) {
@@ -158,7 +217,7 @@ const ClassDetail = () => {
                     <div className="hidden md:flex flex-col items-center w-full">
                         <span className="text-xs font-semibold mb-1 opacity-90">{currentIndex + 1} dari {allItems.length} Materi Selesai</span>
                         <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
-                            <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${course.progress}%` }}></div>
+                            <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${course.progress || 0}%` }}></div>
                         </div>
                     </div>
                 ),
@@ -173,10 +232,24 @@ const ClassDetail = () => {
 
     const todayDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+    // Jika kelas tidak memiliki modul/materi
+    if (allItems.length === 0) {
+        return (
+            <div className="min-h-screen bg-white font-poppins flex flex-col relative">
+                <LearningNavbar title={course.title} progress={course.progress || 0} currentModule={0} totalModules={0} courseId={course.id} />
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                    <i className="fa-solid fa-person-digging text-6xl text-gray-300 mb-4"></i>
+                    <h2 className="text-xl font-bold text-gray-800">Modul Sedang Disiapkan</h2>
+                    <p className="text-gray-500 mt-2">Tutor sedang menyusun kurikulum untuk kelas ini. Harap kembali lagi nanti.</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-white font-poppins flex flex-col relative">
 
-            <LearningNavbar title={course.title} progress={course.progress} currentModule={currentIndex + 1} totalModules={allItems.length} courseId={course.id} />
+            <LearningNavbar title={course.title} progress={course.progress || 0} currentModule={currentIndex + 1} totalModules={allItems.length} courseId={course.id} />
 
             {/* --- MODAL 1: KONFIRMASI QUIZ --- */}
             <Modal isOpen={showConfirmModal} onClose={() => setShowConfirmModal(false)}>
@@ -210,9 +283,11 @@ const ClassDetail = () => {
 
                     {/* Text Area Review */}
                     <textarea
+                        value={userComment}
+                        onChange={(e) => setUserComment(e.target.value)}
                         className="w-full border border-gray-300 rounded-xl p-4 mb-8 focus:outline-none focus:border-[#3ECF4C] focus:ring-1 focus:ring-[#3ECF4C] text-sm resize-none"
                         rows="4"
-                        placeholder="Masukkan Review"
+                        placeholder="Materi ini sangat mudah dipahami..."
                     ></textarea>
 
                     {/* Tombol Aksi */}
@@ -225,16 +300,14 @@ const ClassDetail = () => {
                         </button>
                         <button
                             onClick={handleSubmitReview}
-                            className="flex-1 py-3 rounded-xl bg-[#3ECF4C] text-white font-bold hover:bg-green-600 transition-colors shadow-md"
+                            disabled={isSubmittingReview}
+                            className="flex-1 py-3 rounded-xl bg-[#3ECF4C] text-white font-bold hover:bg-green-600 transition-colors shadow-md disabled:opacity-50"
                         >
-                            Selesai
+                            {isSubmittingReview ? "Menyimpan..." : "Kirim Ulasan"}
                         </button>
                     </div>
                 </div>
             </Modal>
-
-            {/* --- MODAL 3: HASIL QUIZ (Modal Kecil tidak dipakai, diganti Full Page) --- */}
-            {/* ... (Kode Modal Hasil Opsional jika ingin tetap ada, tapi logic sekarang pakai full page) ... */}
 
             <div className="flex-1 max-w-[1440px] mx-auto w-full flex flex-col lg:flex-row pb-[80px]">
 
@@ -300,9 +373,9 @@ const ClassDetail = () => {
                                     </div>
                                     <div className="flex-1 p-5 md:p-10 flex flex-col bg-white">
                                         <h3 className="text-lg font-bold text-gray-900 mb-2">Pertanyaan {currentQuestionIndex + 1}</h3>
-                                        <p className="text-gray-600 leading-relaxed mb-6">{currentQuestions[currentQuestionIndex].question}</p>
+                                        <p className="text-gray-600 leading-relaxed mb-6">{currentQuestions[currentQuestionIndex]?.question}</p>
                                         <div className="space-y-3 mb-8">
-                                            {currentQuestions[currentQuestionIndex].options.map((opt, optIdx) => {
+                                            {currentQuestions[currentQuestionIndex]?.options.map((opt, optIdx) => {
                                                 const isSelected = answers[currentQuestionIndex] === optIdx;
                                                 return (
                                                     <div key={optIdx} onClick={() => handleAnswerSelect(optIdx)} className={`p-4 rounded-xl border cursor-pointer flex items-center gap-3 transition-all ${isSelected ? 'border-[#3ECF4C] bg-[#F0FDF4]' : 'border-gray-200 hover:bg-gray-50'}`}>
@@ -322,7 +395,7 @@ const ClassDetail = () => {
                         </>
                     )}
 
-                    {/* B. VIDEO & DOC (TETAP SAMA) */}
+                    {/* B. VIDEO & DOC */}
                     {activeItem?.type === 'video' && (
                         <>
                             <div className="w-full aspect-video bg-black flex items-center justify-center relative group">{activeItem.videoId ? <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${activeItem.videoId}?rel=0`} title={activeItem.title} frameBorder="0" allowFullScreen></iframe> : <div className="text-white text-center"><p>Video tidak tersedia</p></div>}</div>
@@ -331,41 +404,42 @@ const ClassDetail = () => {
                     )}
                     {activeItem?.type === 'doc' && (<div className="p-10 text-center h-[400px] flex flex-col justify-center items-center"><i className="fa-regular fa-file-pdf text-5xl text-[#3ECF4C] mb-4"></i><h2 className="text-xl font-bold">{activeItem.title}</h2><button className="mt-4 bg-[#3ECF4C] text-white px-6 py-2 rounded-lg">Download PDF</button></div>)}
 
-                    {/* MOBILE MODUL LIST (Dengan Review Button) */}
+                    {/* DAFTAR MODUL MOBILE DENGAN TOMBOL REVIEW */}
                     <div className="lg:hidden bg-white p-5 pt-6 pb-20 border-t border-gray-100">
                         <h3 className="font-bold mb-4 text-gray-900 text-lg">Daftar Modul</h3>
-                        <div className="space-y-3">{course.modules.map((mod, idx) => (
+                        <div className="space-y-3">{safeModules.map((mod, idx) => (
                             <div key={idx} className="border border-gray-100 rounded-xl overflow-hidden">
-                                <div className="flex justify-between py-3 px-4 bg-gray-50 cursor-pointer items-center" onClick={()=>toggleModule(idx)}><h4 className="font-bold text-sm text-gray-800">{mod.title}</h4><i className={`fa-solid fa-chevron-up text-xs text-gray-500 transition-transform ${openModuleIndex===idx?'':'rotate-180'}`}></i></div>
-                                {openModuleIndex===idx && (<div className="bg-white p-2 space-y-2">{mod.items.map(item => (<div key={item.id} onClick={()=>handleItemClick(item)} className={`flex gap-3 p-3 rounded-lg items-start transition-all cursor-pointer ${activeItemId===item.id ? 'bg-[#F0FDF4] border border-[#3ECF4C]' : 'hover:bg-gray-50 border border-transparent'}`}><div className="mt-0.5 shrink-0">{getIcon(item.type, getItemStatus(item))}</div><div className="flex-1"><p className={`text-sm font-semibold mb-1 ${activeItemId===item.id ? 'text-gray-900' : 'text-gray-600'}`}>{item.title}</p></div></div>))}</div>)}
+                                <div className="flex justify-between py-3 px-4 bg-gray-50 cursor-pointer hover:bg-gray-100" onClick={() => toggleModule(idx)}><h4 className="font-bold text-sm text-[#3ECF4C]">{mod.title}</h4><i className={`fa-solid fa-chevron-down text-gray-400 transition-transform ${openModuleIndex === idx ? 'rotate-180' : ''}`}></i></div>
+                                {openModuleIndex === idx && (
+                                    <div className="p-2 bg-white">
+                                        {(mod.items || []).map((item, iIdx) => (
+                                            <div key={iIdx} onClick={() => handleItemClick(item)} className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors border ${activeItemId===item.id ? 'bg-[#f0fdf4] border-[#3ECF4C]' : 'bg-white border-transparent hover:bg-gray-50 hover:border-gray-100'}`}>
+                                                <div className="mt-0.5 shrink-0">{getIcon(item.type, getItemStatus(item))}</div>
+                                                <div className="flex-1"><p className={`text-sm font-semibold mb-1 leading-snug ${activeItemId===item.id ? 'text-gray-900' : 'text-gray-600'}`}>{item.title}</p></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ))}</div>
-                        {/* BUTTON TRIGGER REVIEW (MOBILE) */}
-                        <div className="mt-6 mb-4">
-                            <button
-                                onClick={() => setShowReviewModal(true)}
-                                className="w-full bg-[#FFC107] hover:bg-yellow-500 text-white font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-2"
-                            >
-                                <i className="fa-regular fa-star"></i> Beri Review & Rating
-                            </button>
-                        </div>
+                        {/* TOMBOL REVIEW MOBILE */}
+                        <button onClick={() => setShowReviewModal(true)} className="w-full mt-6 bg-[#FFC107] hover:bg-yellow-500 text-white font-bold py-3 rounded-xl shadow-sm flex items-center justify-center gap-2">
+                            <i className="fa-regular fa-star"></i> Beri Review & Rating
+                        </button>
                     </div>
                 </div>
 
-                {/* KOLOM KANAN (DAFTAR MODUL DESKTOP) */}
-                <div className="hidden lg:flex w-[30%] flex-col sticky top-[80px] h-[calc(100vh-80px)] bg-white border-l border-gray-100">
-                    <div className="p-6 border-b border-gray-100 bg-white z-10"><h3 className="font-bold text-lg text-gray-900">Daftar Modul</h3></div>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24 custom-scrollbar">
-                        {course.modules.map((mod, idx) => (
-                            <div key={idx} className="mb-2">
-                                <div className="flex justify-between items-center py-2 px-3 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors mb-1 group" onClick={()=>toggleModule(idx)}>
-                                    <h4 className="font-bold text-sm text-gray-800 group-hover:text-green-600 transition-colors">{mod.title}</h4>
-                                    <i className={`fa-solid fa-chevron-up text-xs text-gray-400 transition-transform duration-300 ${openModuleIndex===idx?'':'rotate-180'}`}></i>
-                                </div>
-                                {openModuleIndex===idx && (
-                                    <div className="space-y-1 px-1">
-                                        {mod.items.map(item => (
-                                            <div key={item.id} onClick={()=>handleItemClick(item)} className={`flex gap-3 p-3 rounded-xl border transition-all cursor-pointer items-start ${activeItemId===item.id ? 'bg-[#F0FDF4] border-[#3ECF4C] shadow-sm' : 'bg-white border-transparent hover:bg-gray-50 hover:border-gray-100'}`}>
+                {/* KOLOM KANAN (SIDEBAR MODUL DESKTOP) */}
+                <div className="hidden lg:flex w-[30%] bg-gray-50 flex-col min-h-[calc(100vh-80px)] border-l border-gray-200">
+                    <div className="p-5 border-b border-gray-200 bg-white flex items-center justify-between sticky top-0 z-10"><h2 className="font-bold text-lg text-gray-900">Kurikulum</h2><span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-1 rounded-full">{safeModules.length} Modul</span></div>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-[100px]">
+                        {safeModules.map((mod, idx) => (
+                            <div key={idx} className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                                <div className="flex justify-between py-4 px-5 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => toggleModule(idx)}><h4 className="font-bold text-sm text-gray-800 flex-1 pr-4">{mod.title}</h4><i className={`fa-solid fa-chevron-down text-gray-400 mt-0.5 transition-transform ${openModuleIndex === idx ? 'rotate-180' : ''}`}></i></div>
+                                {openModuleIndex === idx && (
+                                    <div className="p-2 border-t border-gray-100">
+                                        {(mod.items || []).map((item, iIdx) => (
+                                            <div key={iIdx} onClick={() => handleItemClick(item)} className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors border mb-1 last:mb-0 ${activeItemId===item.id ? 'bg-[#e8fbe9] border-[#3ECF4C]' : 'bg-white border-transparent hover:bg-gray-50 hover:border-gray-100'}`}>
                                                 <div className="mt-0.5 shrink-0">{getIcon(item.type, getItemStatus(item))}</div>
                                                 <div className="flex-1"><p className={`text-sm font-semibold mb-1 leading-snug ${activeItemId===item.id ? 'text-gray-900' : 'text-gray-600'}`}>{item.title}</p></div>
                                             </div>

@@ -1,10 +1,9 @@
-import React, { useState, useMemo, useEffect, useContext } from 'react'; // 1. Tambahkan useContext
+import React, { useState, useMemo, useEffect, useContext } from 'react';
 import CourseCard from '../components/CourseCard';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
 import { useNavigate } from 'react-router-dom';
 
-// 2. Ganti import data statis menjadi import Context
 import { CourseContext } from '../context/CourseContext';
 
 const heroBg = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2671&auto=format&fit=crop";
@@ -13,7 +12,6 @@ const newsletterBg = "https://images.unsplash.com/photo-1557804506-669a67965ba0?
 const Home = () => {
     const navigate = useNavigate();
 
-    // 3. Ambil data 'courses' dari Context (sumber yang sama dengan Admin)
     const { courses } = useContext(CourseContext);
 
     const [activeTab, setActiveTab] = useState("Semua Kelas");
@@ -22,9 +20,7 @@ const Home = () => {
 
     const categories = ["Semua Kelas", "Teknologi", "Bisnis", "Desain", "Pemasaran", "Pengembangan Diri"];
 
-    // 4. Ubah logika filter untuk menggunakan data 'courses' dari Context
     const filteredCourses = useMemo(() => {
-        // Jika data belum ada, return array kosong
         if (!courses) return [];
 
         if (activeTab === "Semua Kelas") {
@@ -35,7 +31,7 @@ const Home = () => {
             const cat = course.category;
             switch (activeTab) {
                 case "Teknologi":
-                    return ["Programming", "Data Science", "IT Security", "Teknologi"].includes(cat);
+                    return ["Programming", "Data Science", "IT Security", "Teknologi", "Web Development"].includes(cat);
                 case "Bisnis":
                     return ["Business", "Finance", "Bisnis"].includes(cat);
                 case "Desain":
@@ -48,20 +44,17 @@ const Home = () => {
                     return true;
             }
         });
-    }, [activeTab, courses]); // Tambahkan courses sebagai dependency
+    }, [activeTab, courses]);
 
-    // RESET HALAMAN KE 1 SAAT GANTI KATEGORI
     useEffect(() => {
         setCurrentPage(1);
     }, [activeTab]);
 
-    // HITUNG DATA UNTUK HALAMAN SAAT INI
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentCourses = filteredCourses.slice(indexOfFirstItem, indexOfLastItem);
     const totalPages = Math.ceil(filteredCourses.length / itemsPerPage);
 
-    // Fungsi ganti halaman
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
         const element = document.getElementById('course-section');
@@ -123,28 +116,32 @@ const Home = () => {
                 {currentCourses.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {currentCourses.map((course) => (
-                                // Wrapper Klik
-                                <div
-                                    key={course.id}
-                                    onClick={() => handleCourseClick(course.id)}
-                                    className="cursor-pointer group"
-                                >
-                                    <CourseCard
-                                        id={course.id}
-                                        img={course.image}
-                                        title={course.title}
-                                        desc={course.description}
-                                        // Pakai opsional chaining (?) jaga-jaga kalau datanya belum lengkap dari input Admin
-                                        authorName={course.instructor?.name || "Admin"}
-                                        authorRole={course.instructor?.role || "Tutor"}
-                                        authorImg={course.instructor?.avatar || `https://ui-avatars.com/api/?name=${course.instructor?.name || 'A'}`}
-                                        rating={course.rating || 0}
-                                        reviews={course.reviews || 0}
-                                        price="Rp 300K"
-                                    />
-                                </div>
-                            ))}
+                            {currentCourses.map((course) => {
+
+                                const priceNum = Number(course.price) || 0;
+                                const priceDisplay = priceNum === 0 ? "Gratis" : `Rp ${priceNum.toLocaleString('id-ID')}`;
+
+                                return (
+                                    <div
+                                        key={course.id}
+                                        onClick={() => handleCourseClick(course.id)}
+                                        className="cursor-pointer group"
+                                    >
+                                        <CourseCard
+                                            id={course.id}
+                                            img={course.image || "https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&q=80&w=600"}
+                                            title={course.title}
+                                            desc={course.description}
+                                            authorName={course.instructor?.name || "Admin"}
+                                            authorRole={course.instructor?.role || "Tutor"}
+                                            authorImg={course.instructor?.avatar || `https://ui-avatars.com/api/?name=${course.instructor?.name || 'A'}`}
+                                            rating={course.rating || 0}
+                                            reviews={course.reviews || 0}
+                                            price={priceDisplay}
+                                        />
+                                    </div>
+                                );
+                            })}
                         </div>
 
                         {/* Pagination */}

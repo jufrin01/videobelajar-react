@@ -1,175 +1,232 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import CheckoutNavbar from '../components/CheckoutNavbar';
 import PaymentAccordion from '../components/PaymentAccordion';
 import PaymentOption from '../components/PaymentOption';
 import CheckoutFooter from '../components/CheckoutFooter';
-import { coursesData } from '../data/coursesData';
+
+import { CourseContext } from '../context/CourseContext';
+
+const FALLBACK_BANKS = [
+    { id: "BCA", name: "BCA", logo: "https://upload.wikimedia.org/wikipedia/commons/5/5c/Bank_Central_Asia.svg" },
+    { id: "Mandiri", name: "Mandiri", logo: "https://upload.wikimedia.org/wikipedia/commons/a/ad/Bank_Mandiri_logo_2016.svg" },
+    { id: "BNI", name: "BNI", logo: "https://upload.wikimedia.org/wikipedia/id/5/55/BNI_logo.svg" },
+    { id: "BRI", name: "BRI", logo: "https://upload.wikimedia.org/wikipedia/commons/2/2e/BRI_2020.svg" },
+    { id: "Dana", name: "Dana", logo: "https://upload.wikimedia.org/wikipedia/commons/7/72/Logo_dana_blue.svg" },
+    { id: "Gopay", name: "GoPay", logo: "https://upload.wikimedia.org/wikipedia/commons/8/86/Gopay_logo.svg" },
+    { id: "OVO", name: "OVO", logo: "https://upload.wikimedia.org/wikipedia/commons/e/e1/OVO_logo.svg" }
+];
 
 const Checkout = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    // State Pembayaran
+    const { courses } = useContext(CourseContext);
+
     const [selectedPayment, setSelectedPayment] = useState("BCA");
     const [expandedSection, setExpandedSection] = useState("bank");
 
-    // 2. CARI & TRANSFORMASI DATA
-    const course = useMemo(() => {
-        const rawCourse = coursesData.find((item) => item.id === parseInt(id));
-
-        if (!rawCourse) return null;
-
-        // Data dummy pelengkap untuk keperluan Checkout
-        // (Karena data pusat tidak menyimpan harga numerik/benefits)
-        const isFree = rawCourse.id % 5 === 0; // Logic dummy: ID kelipatan 5 gratis
-        const priceNum = isFree ? 0 : 300000;
-        const originalPriceNum = isFree ? 0 : 600000;
-
-        return {
-            ...rawCourse,
-            // Mapping Field agar sesuai UI Checkout yang sudah ada
-            img: rawCourse.image,
-            priceNum: priceNum,
-            originalPriceNum: originalPriceNum,
-            priceDisplay: isFree ? "Gratis" : "Rp " + priceNum.toLocaleString('id-ID'),
-            originalPriceDisplay: isFree ? "" : "Rp " + originalPriceNum.toLocaleString('id-ID'),
-            benefits: [
-                "Akses Selamanya",
-                `${rawCourse.totalModules} Modul Materi`,
-                "Sertifikat Kompetensi",
-                "Grup Diskusi"
-            ]
-        };
-    }, [id]);
-
-    // Scroll to top
-    useEffect(() => {
-        window.scrollTo(0, 0);
-    }, [id]);
-
-    // Handle Not Found
-    if (!course) {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-                <div className="text-xl font-bold text-gray-600">Kursus tidak ditemukan</div>
-                <button onClick={() => navigate('/')} className="text-green-500 underline">Kembali ke Beranda</button>
-            </div>
-        );
-    }
-
-    // Kalkulasi Harga Akhir
-    const adminFee = course.priceNum === 0 ? 0 : 7000; // Gratis = No Admin Fee
-    const totalPayment = course.priceNum + adminFee;
-
+    // Fungsi buka tutup accordion
     const toggleSection = (section) => {
         setExpandedSection(expandedSection === section ? "" : section);
     };
 
-    return (
-        <div className="min-h-screen bg-[#FFFDF3] pb-20 font-poppins">
+    const [banksData, setBanksData] = useState([]);
+    const [isLoadingBanks, setIsLoadingBanks] = useState(true);
 
-            {/* Navbar Khusus Checkout */}
+    const DB_URL = 'https://videobelajarweb-default-rtdb.asia-southeast1.firebasedatabase.app';
+
+    useEffect(() => {
+        const fetchBanks = async () => {
+            try {
+                const response = await axios.get(`${DB_URL}/banks.json`);
+                if (response.data) {
+                    const dataToProcess = response.data.banks ? response.data.banks : response.data;
+
+                    const banksArray = [];
+                    for (const key in dataToProcess) {
+                        banksArray.push({
+                            id: key,
+                            ...dataToProcess[key]
+                        });
+                    }
+                    setBanksData(banksArray.length > 0 ? banksArray : FALLBACK_BANKS);
+                } else {
+                    setBanksData(FALLBACK_BANKS);
+                }
+            } catch (error) {
+                console.error("Gagal memuat data bank:", error);
+                setBanksData(FALLBACK_BANKS);
+            } finally {
+                setIsLoadingBanks(false);
+            }
+        };
+        fetchBanks();
+    }, []);
+
+    const course = useMemo(() => {
+        if (!courses || courses.length === 0) return null;
+
+        const rawCourse = courses.find((item) => item.id === id);
+        if (!rawCourse) return null;
+
+        const priceNum = Number(rawCourse.price) || 0;
+        const originalPriceNum = priceNum === 0 ? 0 : priceNum + 450000;
+
+        return {
+            ...rawCourse,
+            img: rawCourse.image || "https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&q=80&w=600",
+            priceNum: priceNum,
+            originalPriceNum: originalPriceNum,
+            categoryStr: rawCourse.category || "Kategori",
+            instructorName: rawCourse.instructor?.name || "Instruktur"
+        };
+    }, [courses, id]);
+
+    const [adminFee] = useState(3000);
+    const [totalPayment, setTotalPayment] = useState(0);
+
+    useEffect(() => {
+        if (course) {
+            const fee = course.priceNum > 0 ? adminFee : 0;
+            setTotalPayment(course.priceNum + fee);
+        }
+    }, [course, adminFee]);
+
+
+    const eWalletKeys = ["Dana", "Gopay", "OVO", "ShopeePay"];
+    const cardKeys = ["Visa", "Mastercard"];
+
+    const listTransferBank = banksData.filter(b => !eWalletKeys.includes(b.id) && !cardKeys.includes(b.id));
+    const listEWallet = banksData.filter(b => eWalletKeys.includes(b.id));
+    const listCard = banksData.filter(b => cardKeys.includes(b.id));
+
+
+    if (!course) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col font-poppins items-center justify-center">
+                <i className="fa-solid fa-spinner fa-spin text-3xl text-[#3ECF4C] mb-4"></i>
+                <h2 className="text-xl font-bold mb-4 text-gray-700">Memuat detail pesanan...</h2>
+                <Link to="/" className="text-[#3ECF4C] hover:underline text-sm font-medium">Kembali ke Beranda</Link>
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-gray-50 flex flex-col font-poppins">
             <CheckoutNavbar />
 
-            <div className="w-full max-w-7xl mx-auto px-4 md:px-6 py-8 md:py-12">
+            <div className="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
+                <div className="mb-8">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Checkout Pembayaran</h1>
+                    <p className="text-gray-500 text-sm">Selesaikan pembayaran Anda untuk mulai belajar</p>
+                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+                <div className="flex flex-col lg:flex-row gap-8">
 
-                    {/* === 1. INFO KURSUS (MOBILE: POSISI ATAS, DESKTOP: POSISI KANAN) === */}
-                    <div className="lg:col-span-1 lg:col-start-3 h-fit">
-                        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm sticky top-24">
+                    <div className="flex-1 lg:max-w-3xl">
+                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-6">
+                            <h2 className="text-lg font-bold text-gray-900 mb-4">Pilih Metode Pembayaran</h2>
 
-                            {/* Judul (Mobile Only) */}
-                            <h3 className="lg:hidden font-bold text-xl text-gray-900 mb-4">Detail Kelas</h3>
+                            <div className="space-y-3">
 
-                            {/* Gambar Kursus */}
-                            <div className="relative h-48 rounded-lg overflow-hidden mb-4">
-                                <img src={course.img} alt={course.title} className="w-full h-full object-cover" />
-                            </div>
+                                <PaymentAccordion title="Transfer Bank / Virtual Account" isOpen={expandedSection === 'bank'} onToggle={() => toggleSection('bank')}>
+                                    {/* PERBAIKAN: Menggunakan flex-col agar turun ke bawah secara berurutan */}
+                                    <div className="flex flex-col gap-3 mt-3">
+                                        {isLoadingBanks ? (
+                                            <p className="text-sm text-gray-500 px-2 animate-pulse">Memuat bank...</p>
+                                        ) : listTransferBank.map(bank => (
+                                            <PaymentOption
+                                                key={bank.id}
+                                                id={bank.id}
+                                                name={`${bank.name} Virtual Account`}
+                                                logo={bank.logo}
+                                                selected={selectedPayment}
+                                                onSelect={setSelectedPayment}
+                                            />
+                                        ))}
+                                    </div>
+                                </PaymentAccordion>
 
-                            {/* Judul & Harga */}
-                            <h3 className="font-bold text-gray-900 mb-2 leading-snug text-lg">{course.title}</h3>
-                            <div className="flex items-center gap-2 mb-6">
-                                <span className="text-green-500 font-bold text-lg">{course.priceDisplay}</span>
-                                {course.originalPriceNum > 0 && (
-                                    <>
-                                        <span className="text-gray-400 line-through text-sm">{course.originalPriceDisplay}</span>
-                                        <span className="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded">Diskon 50%</span>
-                                    </>
-                                )}
-                            </div>
+                                <PaymentAccordion title="E-Wallet" isOpen={expandedSection === 'ewallet'} onToggle={() => toggleSection('ewallet')}>
+                                    {/* PERBAIKAN: Menggunakan flex-col agar turun ke bawah secara berurutan */}
+                                    <div className="flex flex-col gap-3 mt-3">
+                                        {isLoadingBanks ? (
+                                            <p className="text-sm text-gray-500 px-2 animate-pulse">Memuat e-wallet...</p>
+                                        ) : listEWallet.length > 0 ? listEWallet.map(ewallet => (
+                                            <PaymentOption
+                                                key={ewallet.id}
+                                                id={ewallet.id}
+                                                name={ewallet.name}
+                                                logo={ewallet.logo}
+                                                selected={selectedPayment}
+                                                onSelect={setSelectedPayment}
+                                            />
+                                        )) : (
+                                            <p className="text-sm text-gray-400 italic px-2">Belum ada e-wallet tersedia.</p>
+                                        )}
+                                    </div>
+                                </PaymentAccordion>
 
-                            {/* Fasilitas */}
-                            <div className="space-y-4">
-                                <h4 className="font-bold text-gray-800 text-sm">Kelas Ini Sudah Termasuk</h4>
-                                <ul className="text-sm text-gray-500 space-y-3">
-                                    {course.benefits.map((benefit, idx) => (
-                                        <li key={idx} className="flex items-center gap-3">
-                                            <i className="fa-regular fa-file-lines w-4 text-gray-400"></i> {benefit}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+                                <PaymentAccordion title="Kartu Kredit / Debit" isOpen={expandedSection === 'card'} onToggle={() => toggleSection('card')}>
+                                    {/* PERBAIKAN: Menggunakan flex-col agar turun ke bawah secara berurutan */}
+                                    <div className="flex flex-col gap-3 mt-3">
+                                        {listCard.length > 0 ? listCard.map(card => (
+                                            <PaymentOption
+                                                key={card.id}
+                                                id={card.id}
+                                                name={card.name}
+                                                logo={card.logo}
+                                                selected={selectedPayment}
+                                                onSelect={setSelectedPayment}
+                                            />
+                                        )) : (
+                                            <p className="text-sm text-gray-400 italic px-2">Belum ada kartu tersedia.</p>
+                                        )}
+                                    </div>
+                                </PaymentAccordion>
 
-                            <div className="border-t border-gray-100 my-6"></div>
-
-                            <div>
-                                <h4 className="font-bold text-gray-800 text-sm mb-2">Bahasa Pengantar</h4>
-                                <div className="flex items-center gap-2 text-sm text-gray-500">
-                                    <i className="fa-solid fa-globe"></i> Bahasa Indonesia
-                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* === 2. METODE PEMBAYARAN & RINGKASAN (MOBILE: POSISI BAWAH, DESKTOP: POSISI KIRI) === */}
-                    <div className="lg:col-span-2 lg:col-start-1 lg:row-start-1 space-y-8">
+                    <div className="w-full lg:w-[400px]">
+                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm sticky top-24">
+                            <h2 className="text-lg font-bold text-gray-900 mb-6">Ringkasan Pesanan</h2>
 
-                        {/* Header Judul (Desktop Only) */}
-                        <div className="hidden lg:block">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Metode Pembayaran</h2>
-                        </div>
-
-                        {/* Accordion Pilihan Pembayaran */}
-                        <div>
-                            {/* Bank Transfer */}
-                            <PaymentAccordion title="Transfer Bank" isOpen={expandedSection === 'bank'} onToggle={() => toggleSection('bank')}>
-                                <PaymentOption id="BCA" logo="https://upload.wikimedia.org/wikipedia/commons/5/5c/Bank_Central_Asia.svg" name="Bank BCA" selected={selectedPayment} onSelect={setSelectedPayment} />
-                                <PaymentOption id="BNI" logo="https://upload.wikimedia.org/wikipedia/id/5/55/BNI_logo.svg" name="Bank BNI" selected={selectedPayment} onSelect={setSelectedPayment} />
-                                <PaymentOption id="BRI" logo="https://upload.wikimedia.org/wikipedia/commons/6/68/BANK_BRI_logo.svg" name="Bank BRI" selected={selectedPayment} onSelect={setSelectedPayment} />
-                                <PaymentOption id="Mandiri" logo="https://upload.wikimedia.org/wikipedia/commons/a/ad/Bank_Mandiri_logo_2016.svg" name="Bank Mandiri" selected={selectedPayment} onSelect={setSelectedPayment} />
-                            </PaymentAccordion>
-
-                            {/* E-Wallet */}
-                            <PaymentAccordion title="E-Wallet" isOpen={expandedSection === 'ewallet'} onToggle={() => toggleSection('ewallet')}>
-                                <PaymentOption id="Dana" logo="https://upload.wikimedia.org/wikipedia/commons/7/72/Logo_dana_blue.svg" name="Dana" selected={selectedPayment} onSelect={setSelectedPayment} />
-                                <PaymentOption id="OVO" logo="https://upload.wikimedia.org/wikipedia/commons/e/eb/Logo_ovo_purple.svg" name="OVO" selected={selectedPayment} onSelect={setSelectedPayment} />
-                                <PaymentOption id="LinkAja" logo="https://upload.wikimedia.org/wikipedia/commons/8/85/LinkAja.svg" name="LinkAja" selected={selectedPayment} onSelect={setSelectedPayment} />
-                                <PaymentOption id="ShopeePay" logo="https://upload.wikimedia.org/wikipedia/commons/f/fe/Shopee.svg" name="Shopee Pay" selected={selectedPayment} onSelect={setSelectedPayment} />
-                            </PaymentAccordion>
-
-                            {/* Kartu Kredit */}
-                            <PaymentAccordion title="Kartu Kredit/Debit" isOpen={expandedSection === 'cc'} onToggle={() => toggleSection('cc')}>
-                                <div className="flex items-center gap-4 p-4">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Mastercard-logo.svg" className="h-6" alt="Mastercard" />
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" className="h-4" alt="Visa" />
+                            <div className="flex gap-4 mb-6">
+                                <div className="w-20 h-14 rounded overflow-hidden shrink-0 border border-gray-100 bg-gray-100">
+                                    <img src={course.img} alt={course.title} className="w-full h-full object-cover" />
                                 </div>
-                            </PaymentAccordion>
-                        </div>
-
-                        {/* Ringkasan Pesanan */}
-                        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                            <h4 className="font-bold text-lg mb-6 text-gray-900">Ringkasan Pesanan</h4>
-
-                            <div className="space-y-4 mb-6">
-                                <div className="flex justify-between items-start text-gray-600">
-                                    <span className="max-w-[70%]">Video Learning: {course.title}</span>
-                                    <span className="font-medium text-gray-900">Rp {course.priceNum.toLocaleString('id-ID')}</span>
+                                <div>
+                                    <h3 className="font-bold text-gray-900 text-sm line-clamp-2 leading-snug">{course.title}</h3>
+                                    <p className="text-xs text-gray-500 mt-1">{course.categoryStr} • {course.instructorName}</p>
                                 </div>
-                                <div className="flex justify-between items-center text-gray-600">
+                            </div>
+
+                            <div className="border-t border-gray-100 my-4"></div>
+
+                            <div className="space-y-3 text-sm">
+                                <div className="flex justify-between text-gray-600">
+                                    <span>Harga Kelas</span>
+                                    <span className="font-medium text-gray-900">
+                                        {course.priceNum === 0 ? "Gratis" : `Rp ${course.originalPriceNum.toLocaleString('id-ID')}`}
+                                    </span>
+                                </div>
+
+                                {course.priceNum > 0 && course.originalPriceNum > course.priceNum && (
+                                    <div className="flex justify-between text-gray-600">
+                                        <span>Potongan Diskon</span>
+                                        <span className="font-medium text-green-500">- Rp {(course.originalPriceNum - course.priceNum).toLocaleString('id-ID')}</span>
+                                    </div>
+                                )}
+
+                                <div className="flex justify-between text-gray-600">
                                     <span>Biaya Admin</span>
-                                    <span className="font-medium text-gray-900">Rp {adminFee.toLocaleString('id-ID')}</span>
+                                    <span className="font-medium text-gray-900">
+                                        {course.priceNum === 0 ? "Gratis" : `Rp ${adminFee.toLocaleString('id-ID')}`}
+                                    </span>
                                 </div>
                             </div>
 
@@ -177,27 +234,24 @@ const Checkout = () => {
 
                             <div className="flex justify-between items-center mb-6">
                                 <span className="font-bold text-gray-900">Total Pembayaran</span>
-                                <span className="font-bold text-green-500 text-xl">Rp {totalPayment.toLocaleString('id-ID')}</span>
+                                <span className="font-bold text-green-500 text-xl">
+                                    {totalPayment === 0 ? "Gratis" : `Rp ${totalPayment.toLocaleString('id-ID')}`}
+                                </span>
                             </div>
 
-                            {/* TOMBOL BAYAR */}
                             <Link
                                 to={`/payment/${id}`}
                                 state={{ paymentMethod: selectedPayment, total: totalPayment }}
                                 className="block w-full bg-[#3ECF4C] hover:bg-green-600 text-white font-bold py-4 rounded-lg shadow-md hover:shadow-lg transition-all transform active:scale-95 text-center"
                             >
-                                Bayar Sekarang
+                                {totalPayment === 0 ? "Dapatkan Kelas (Gratis)" : "Bayar Sekarang"}
                             </Link>
                         </div>
-
                     </div>
-
                 </div>
             </div>
 
-            {/* Footer Mobile */}
             <CheckoutFooter />
-
         </div>
     );
 };

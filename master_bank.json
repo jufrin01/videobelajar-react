@@ -1,0 +1,82 @@
+{
+  "banks": {
+    "BCA": {
+      "id": "BCA",
+      "name": "BCA",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/5/5c/Bank_Central_Asia.svg",
+      "vaCode": "11739",
+      "themeColor": "text-blue-600",
+      "instructions": {
+        "atm": [
+          "Masukkan kartu ATM dan PIN BCA Anda",
+          "Di menu utama, pilih \"Transaksi Lainnya\". Pilih \"Transfer\". Pilih \"Ke BCA Virtual Account\"",
+          "Masukkan nomor Virtual Account",
+          "Pastikan data Virtual Account Anda benar, kemudian masukkan angka yang perlu Anda bayarkan, kemudian pilih \"Benar\"",
+          "Cek dan perhatikan konfirmasi pembayaran dari layar ATM, jika sudah benar pilih \"Ya\"",
+          "Transaksi selesai"
+        ],
+        "mobile": [
+          "Buka Aplikasi BCA Mobile",
+          "Pilih \"m-BCA\", kemudian pilih \"m-Transfer\"",
+          "Pilih \"BCA Virtual Account\"",
+          "Masukkan nomor Virtual Account, lalu pilih \"OK\"",
+          "Klik tombol \"Send\", lalu Masukkan PIN Anda",
+          "Transaksi selesai"
+        ],
+        "internet": [
+          "Login ke KlikBCA Individual",
+          "Pilih \"Transfer\", kemudian pilih \"Transfer ke BCA Virtual Account\"",
+          "Masukkan nomor Virtual Account",
+          "Pilih \"Lanjutkan\" dan masukkan respon KeyBCA",
+          "Pembayaran selesai"
+        ]
+      }
+    },
+    "BNI": {
+      "id": "BNI",
+      "name": "BNI",
+      "logo": "https://upload.wikimedia.org/wikipedia/id/5/55/BNI_logo.svg",
+      "vaCode": "8808",
+      "themeColor": "text-orange-600",
+      "instructions": {
+        "atm": ["Masukkan kartu ATM BNI & PIN", "Pilih Menu Lain > Transfer > Virtual Account Billing", "Masukkan nomor VA", "Konfirmasi pembayaran", "Selesai"],
+        "mobile": ["Buka BNI Mobile Banking", "Pilih menu Transfer > Virtual Account Billing", "Masukkan nomor VA", "Masukkan Password Transaksi", "Selesai"],
+        "internet": ["Login BNI Internet Banking", "Pilih Transaksi > Virtual Account Billing", "Masukkan nomor VA", "Lanjutkan proses otorisasi"]
+      }
+    },
+    "BRI": {
+      "id": "BRI",
+      "name": "BRI",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/6/68/BANK_BRI_logo.svg",
+      "vaCode": "12345",
+      "themeColor": "text-blue-800",
+      "instructions": {
+        "atm": ["Masukkan kartu ATM BRI & PIN", "Pilih Transaksi Lain > Pembayaran > Lainnya > BRIVA", "Masukkan nomor VA", "Konfirmasi, pilih YA", "Selesai"],
+        "mobile": ["Buka aplikasi BRImo", "Pilih menu Pembayaran > BRIVA", "Masukkan nomor VA", "Masukkan PIN BRImo", "Selesai"],
+        "internet": ["Login IB BRI", "Pilih Pembayaran > BRIVA", "Masukkan Kode Bayar", "Masukkan Password & m-Token", "Kirim"]
+      }
+    },
+    "Mandiri": {
+      "id": "Mandiri",
+      "name": "Mandiri",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ad/Bank_Mandiri_logo_2016.svg",
+      "vaCode": "89898",
+      "themeColor": "text-blue-900",
+      "instructions": {
+        "atm": ["Masukkan kartu ATM Mandiri & PIN", "Pilih Bayar/Beli > Lainnya > Multi Payment", "Masukkan Kode Perusahaan lalu Nomor VA", "Konfirmasi", "Selesai"],
+        "mobile": ["Buka Livin' by Mandiri", "Pilih menu Bayar > Cari Penyedia Jasa > Masukkan No VA", "Lanjut Bayar dan masukkan PIN", "Selesai"],
+        "internet": ["Login Mandiri Online", "Pilih menu Bayar > Multi Payment", "Pilih Penyedia Jasa dan masukkan Nomor VA", "Lanjutkan"]
+      }
+    },
+    "Dana": {
+      "id": "Dana",
+      "name": "Dana",
+      "logo": "https://upload.wikimedia.org/wikipedia/commons/7/72/Logo_dana_blue.svg",
+      "vaCode": "3901",
+      "themeColor": "text-blue-500",
+      "instructions": {
+        "mobile": ["Buka aplikasi Dana", "Pilih Kirim ke Bank", "Pilih Bank Permata (sebagai perantara)", "Masukkan No VA", "Konfirmasi"]
+      }
+    }
+  }
+}
