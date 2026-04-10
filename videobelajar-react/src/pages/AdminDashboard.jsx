@@ -1,14 +1,18 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import Layout from '../components/Layout';
-import { CourseContext } from '../context/CourseContext';
+
+
+import { useSelector, useDispatch } from 'react-redux';
+import { addCourse, updateCourse, deleteCourse, fetchCourses } from '../store/courseSlice';
 
 const AdminDashboard = () => {
-    const { courses, addCourse, updateCourse, deleteCourse, refreshData } = useContext(CourseContext);
+    // 2. INISIALISASI DISPATCH DAN STATE REDUX
+    const dispatch = useDispatch();
+    const { data: courses, isLoading } = useSelector((state) => state.courses);
 
     const [isEditing, setIsEditing] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // 1. UPDATE STATE: Menambahkan array 'userReviews'
     const [formData, setFormData] = useState({
         title: "",
         category: "Teknologi",
@@ -18,7 +22,7 @@ const AdminDashboard = () => {
         instructorName: "Admin",
         instructorRole: "Senior Tutor",
         modules: [],
-        userReviews: [] // <-- Array untuk menampung review manual
+        userReviews: []
     });
 
     const handleChange = (e) => {
@@ -73,7 +77,7 @@ const AdminDashboard = () => {
                 id: Date.now(),
                 name: "",
                 role: "Siswa",
-                rating: 5, // Default bintang 5
+                rating: 5,
                 comment: "",
                 avatar: ""
             }]
@@ -82,10 +86,8 @@ const AdminDashboard = () => {
 
     const handleReviewChange = (index, field, value) => {
         const newReviews = [...formData.userReviews];
-        // Pastikan rating tersimpan sebagai angka
         newReviews[index][field] = field === 'rating' ? Number(value) : value;
 
-        // Auto-generate avatar berdasarkan nama yang diketik
         if (field === 'name') {
             newReviews[index].avatar = `https://ui-avatars.com/api/?name=${value.replace(/\s+/g, '+')}&background=random`;
         }
@@ -99,13 +101,12 @@ const AdminDashboard = () => {
     };
 
     // ==========================================
-    // SUBMIT DATA
+    // SUBMIT DATA (MENGGUNAKAN REDUX DISPATCH)
     // ==========================================
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
 
-        // Menghitung rata-rata rating secara otomatis dari array userReviews
         const totalRatingSum = formData.userReviews.reduce((sum, r) => sum + r.rating, 0);
         const calculatedRating = formData.userReviews.length > 0 ? (totalRatingSum / formData.userReviews.length).toFixed(1) : 0;
 
@@ -118,7 +119,6 @@ const AdminDashboard = () => {
             progress: 0,
             totalModules: formData.modules.length,
             completedModules: 0,
-            // SINKRONISASI RATING & REVIEWS
             rating: Number(calculatedRating),
             reviews: formData.userReviews.length,
             userReviews: formData.userReviews,
@@ -132,14 +132,13 @@ const AdminDashboard = () => {
 
         try {
             if (isEditing) {
-                await updateCourse(isEditing, dataToSave);
-                alert("✅ Data berhasil diperbarui di server!");
+                await dispatch(updateCourse({ id: isEditing, updatedData: dataToSave })).unwrap();
+                alert(" Data berhasil diperbarui di server!");
             } else {
-                await addCourse(dataToSave);
-                alert("✅ Kelas baru berhasil ditambahkan!");
+                await dispatch(addCourse(dataToSave)).unwrap();
+                alert("Kelas baru berhasil ditambahkan!");
             }
 
-            // Reset Form
             setIsEditing(null);
             setFormData({
                 title: "", category: "Teknologi", description: "", price: "", image: "",
@@ -147,7 +146,7 @@ const AdminDashboard = () => {
             });
         } catch (error) {
             console.error(error);
-            alert("❌ Gagal menyimpan data.");
+            alert("Gagal menyimpan data.");
         } finally {
             setIsSubmitting(false);
         }
@@ -164,9 +163,20 @@ const AdminDashboard = () => {
             instructorName: course.instructor?.name || "",
             instructorRole: course.instructor?.role || "",
             modules: course.modules || [],
-            userReviews: course.userReviews || [] // Muat data review jika ada
+            userReviews: course.userReviews || []
         });
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Fungsi Delete Khusus Redux
+    const handleDeleteClick = async (id) => {
+        if (window.confirm("Apakah Anda yakin ingin menghapus kelas ini secara permanen dari server?")) {
+            try {
+                await dispatch(deleteCourse(id)).unwrap();
+            } catch (error) {
+                alert("Gagal menghapus kelas dari database.");
+            }
+        }
     };
 
     return (
@@ -174,7 +184,7 @@ const AdminDashboard = () => {
             <div className="max-w-7xl mx-auto px-6 py-10 font-poppins min-h-screen">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-800">Dashboard Admin</h1>
-                    <button onClick={refreshData} className="text-xs text-blue-500 hover:underline">
+                    <button onClick={() => dispatch(fetchCourses())} className="text-xs text-blue-500 hover:underline">
                         <i className="fa-solid fa-rotate-right mr-1"></i> Refresh Data
                     </button>
                 </div>
@@ -198,7 +208,7 @@ const AdminDashboard = () => {
                                 <div>
                                     <label className="block text-xs font-bold text-gray-600 mb-1">Kategori</label>
                                     <select name="category" value={formData.category} onChange={handleChange} className="w-full border p-2.5 rounded">
-                                        {["Teknologi", "UI/UX Design", "Web Development", "Business"].map(cat => (
+                                        {["Teknologi", "UI/UX Design", "Web Development", "Business", "Marketing", "Desain", "Pengembangan Diri"].map(cat => (
                                             <option key={cat} value={cat}>{cat}</option>
                                         ))}
                                     </select>
@@ -257,6 +267,7 @@ const AdminDashboard = () => {
                                                         <select value={item.type} onChange={(e) => handleItemChange(mIndex, iIndex, 'type', e.target.value)} className="text-xs border p-1 rounded bg-white">
                                                             <option value="video">Video</option>
                                                             <option value="doc">Dokumen</option>
+                                                            <option value="quiz">Quiz</option>
                                                         </select>
                                                         <input type="text" value={item.title} onChange={(e) => handleItemChange(mIndex, iIndex, 'title', e.target.value)} placeholder="Judul Materi..." className="flex-1 text-sm border p-1 rounded" required />
                                                         {item.type === 'video' && (
@@ -278,7 +289,7 @@ const AdminDashboard = () => {
                             )}
                         </div>
 
-                        {/* --- BAGIAN 3: REVIEW BUILDER (BARU) --- */}
+                        {/* --- BAGIAN 3: REVIEW BUILDER --- */}
                         <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                             <div className="flex justify-between items-center border-b pb-2 mb-4">
                                 <div>
@@ -356,7 +367,11 @@ const AdminDashboard = () => {
                         </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                        {courses.map(course => (
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan="4" className="text-center py-10 text-gray-500"><i className="fa-solid fa-spinner fa-spin mr-2"></i>Memuat data dari server...</td>
+                            </tr>
+                        ) : courses.map(course => (
                             <tr key={course.id} className="hover:bg-gray-50">
                                 <td className="p-4">
                                     <div className="font-bold text-gray-800">{course.title}</div>
@@ -373,10 +388,15 @@ const AdminDashboard = () => {
                                 </td>
                                 <td className="p-4 text-center">
                                     <button onClick={() => handleEditClick(course)} className="mx-1 w-8 h-8 bg-orange-50 text-orange-500 rounded hover:bg-orange-500 hover:text-white"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
-                                    <button onClick={() => deleteCourse(course.id)} className="mx-1 w-8 h-8 bg-red-50 text-red-500 rounded hover:bg-red-500 hover:text-white"><i className="fa-solid fa-trash text-xs"></i></button>
+                                    <button onClick={() => handleDeleteClick(course.id)} className="mx-1 w-8 h-8 bg-red-50 text-red-500 rounded hover:bg-red-500 hover:text-white"><i className="fa-solid fa-trash text-xs"></i></button>
                                 </td>
                             </tr>
                         ))}
+                        {!isLoading && courses.length === 0 && (
+                            <tr>
+                                <td colSpan="4" className="text-center py-10 text-gray-500 text-sm font-medium">Belum ada data kelas di database server.</td>
+                            </tr>
+                        )}
                         </tbody>
                     </table>
                 </div>

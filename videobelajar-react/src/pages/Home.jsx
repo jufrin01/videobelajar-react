@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useEffect, useContext } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import CourseCard from '../components/CourseCard';
 import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
 import { useNavigate } from 'react-router-dom';
 
-import { CourseContext } from '../context/CourseContext';
+import { useSelector } from 'react-redux';
 
 const heroBg = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2671&auto=format&fit=crop";
 const newsletterBg = "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2574&auto=format&fit=crop";
@@ -12,7 +12,8 @@ const newsletterBg = "https://images.unsplash.com/photo-1557804506-669a67965ba0?
 const Home = () => {
     const navigate = useNavigate();
 
-    const { courses } = useContext(CourseContext);
+
+    const { data: courses, isLoading } = useSelector((state) => state.courses);
 
     const [activeTab, setActiveTab] = useState("Semua Kelas");
     const [currentPage, setCurrentPage] = useState(1);
@@ -21,7 +22,7 @@ const Home = () => {
     const categories = ["Semua Kelas", "Teknologi", "Bisnis", "Desain", "Pemasaran", "Pengembangan Diri"];
 
     const filteredCourses = useMemo(() => {
-        if (!courses) return [];
+        if (!courses || courses.length === 0) return [];
 
         if (activeTab === "Semua Kelas") {
             return courses;
@@ -112,12 +113,16 @@ const Home = () => {
                     ))}
                 </div>
 
-                {/* Grid Kursus */}
-                {currentCourses.length > 0 ? (
+                {/* Indikator Loading dari Redux */}
+                {isLoading ? (
+                    <div className="text-center py-20 text-gray-500">
+                        <i className="fa-solid fa-spinner fa-spin text-4xl mb-4 text-[#3ECF4C]"></i>
+                        <p className="font-medium">Memuat data kelas dari server...</p>
+                    </div>
+                ) : currentCourses.length > 0 ? (
                     <>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {currentCourses.map((course) => {
-
                                 const priceNum = Number(course.price) || 0;
                                 const priceDisplay = priceNum === 0 ? "Gratis" : `Rp ${priceNum.toLocaleString('id-ID')}`;
 
