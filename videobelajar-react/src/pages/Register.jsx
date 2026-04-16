@@ -3,9 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 
-// 1. IMPORT FIREBASE AUTH
-import { auth } from '../firebase/firebase';
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 
 const Register = () => {
     const navigate = useNavigate();
@@ -21,7 +18,6 @@ const Register = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    // State Loading dan Error
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
 
@@ -34,44 +30,50 @@ const Register = () => {
         setErrorMsg("");
 
         if (formData.password !== formData.confirmPassword) {
-            setErrorMsg("❌ Password dan Konfirmasi Password tidak sama!");
+            setErrorMsg("Password dan Konfirmasi Password tidak sama!");
+            return;
+        }
+
+        if (formData.password.length < 6) {
+            setErrorMsg("Kata sandi terlalu lemah (minimal 6 karakter).");
             return;
         }
 
         setIsLoading(true);
 
         try {
-            // 2. PROSES DAFTAR KE FIREBASE
-            const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-            const user = userCredential.user;
-
-            // 3. SIMPAN NAMA USER KE FIREBASE
-            await updateProfile(user, {
-                displayName: formData.name
+            const response = await fetch('http://localhost:5000/api/users/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: formData.name,
+                    email: formData.email,
+                    password: formData.password,
+                    role: "user"
+                })
             });
 
-            // 4. SIMPAN DATA KE LOCAL STORAGE (Untuk Navbar)
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Terjadi kesalahan sistem. Silakan coba lagi.");
+            }
+
             const userData = {
-                uid: user.uid,
-                email: user.email,
-                name: formData.name,
-                role: "user" // Default menjadi user biasa
+                uid: data.id,
+                email: data.email,
+                name: data.name,
+                role: data.role || "user"
             };
             localStorage.setItem("user", JSON.stringify(userData));
 
-            alert("✅ Pendaftaran Berhasil! Akun Anda sudah terdaftar di Server.");
+            alert("Pendaftaran Berhasil! Akun Anda sudah terdaftar di Database.");
             navigate("/"); // Langsung ke Beranda
             window.location.reload();
 
         } catch (error) {
-            console.error("Firebase Error:", error.code);
-            if (error.code === 'auth/email-already-in-use') {
-                setErrorMsg("Email sudah terdaftar. Silakan gunakan email lain atau Masuk.");
-            } else if (error.code === 'auth/weak-password') {
-                setErrorMsg("Kata sandi terlalu lemah (minimal 6 karakter).");
-            } else {
-                setErrorMsg("Terjadi kesalahan sistem. Silakan coba lagi.");
-            }
+            console.error("Register Error:", error.message);
+            setErrorMsg(error.message);
         } finally {
             setIsLoading(false);
         }
@@ -102,7 +104,7 @@ const Register = () => {
                             type="text"
                             placeholder="Contoh: Jufrin Bima"
                             value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })} // <-- UBAH BAGIAN INI
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             required
                         />
 
@@ -112,7 +114,7 @@ const Register = () => {
                             type="email"
                             placeholder="nama@email.com"
                             value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })} // <-- UBAH BAGIAN INI
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                             required
                         />
                         <div className="mb-5">

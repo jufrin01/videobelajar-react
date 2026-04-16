@@ -1,45 +1,106 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase/firebase';
 
-// --- 1. THUNK: Mengambil data dari Firebase (READ) ---
+// URL Backend Node.js Anda (Pastikan Backend sedang berjalan!)
+const API_URL = 'http://localhost:5000/api/courses';
+
+// --- 1. READ: Ambil Data dari PostgreSQL ---
 export const fetchCourses = createAsyncThunk(
     'courses/fetchCourses',
     async (_, { rejectWithValue }) => {
         try {
-            const coursesCol = collection(db, "courses");
-            const snapshot = await getDocs(coursesCol);
-            const courseList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error('Gagal mengambil data dari server');
+
+            const data = await response.json();
+
+            // Transformasi data PostgreSQL agar cocok dengan struktur UI React Anda
+            const formattedData = data.map(course => ({
+                id: course.id,
+                title: course.title,
+                category: course.category,
+                description: course.description,
+                price: course.price,
+                image: course.image,
+                // Menggabungkan instructor_name & instructor_role menjadi satu object
+                instructor: {
+                    name: course.instructor_name || "Admin",
+                    role: course.instructor_role || "Tutor",
+                    avatar: `https://ui-avatars.com/api/?name=${(course.instructor_name || 'A').replace(/\s+/g, '+')}`
+                },
+                // Fallback untuk modul & review (karena di Postgres belum kita buat tabelnya)
+                modules: [],
+                userReviews: [],
+                rating: 0,
+                reviews: 0
             }));
-            return courseList;
+
+            return formattedData;
         } catch (error) {
             return rejectWithValue(error.message);
         }
     }
 );
 
-// --- 2. THUNK: Tambah Kelas ke Firebase (CREATE) ---
+// --- 2. CREATE: Tambah Kelas Baru ---
 export const addCourse = createAsyncThunk(
     'courses/addCourse',
     async (newCourse, { rejectWithValue }) => {
         try {
-            const docRef = await addDoc(collection(db, "courses"), newCourse);
-            return { id: docRef.id, ...newCourse };
+            // Ubah format data dari React agar cocok dengan yang diminta Backend
+            const backendPayload = {
+                title: newCourse.title,
+                category: newCourse.category,
+                description: newCourse.description,
+                price: newCourse.price,
+                image: newCourse.image,
+                instructorName: newCourse.instructor?.name || "Admin",
+                instructorRole: newCourse.instructor?.role || "Tutor"
+            };
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(backendPayload)
+            });
+
+            if (!response.ok) throw new Error('Gagal menambah kelas ke database');
+
+            const savedData = await response.json();
+
+            // Kembalikan ke format React untuk di-push ke Redux State
+            return {
+                id: savedData.id,
+                ...newCourse // Gunakan data asli dari UI agar langsung tampil
+            };
         } catch (error) {
             return rejectWithValue(error.message);
         }
     }
 );
 
-// --- 3. THUNK: Update Kelas di Firebase (UPDATE) ---
+// --- 3. UPDATE: Edit Kelas ---
 export const updateCourse = createAsyncThunk(
     'courses/updateCourse',
     async ({ id, updatedData }, { rejectWithValue }) => {
         try {
-            const courseDoc = doc(db, "courses", id);
-            await updateDoc(courseDoc, updatedData);
+            const backendPayload = {
+                title: updatedData.title,
+                category: updatedData.category,
+                description: updatedData.description,
+                price: updatedData.price,
+                image: updatedData.image,
+                instructorName: updatedData.instructor?.name || "Admin",
+                instructorRole: updatedData.instructor?.role || "Tutor"
+            };
+
+            const response = await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(backendPayload)
+            });
+
+            if (!response.ok) throw new Error('Gagal mengupdate kelas');
+
             return { id, updatedData };
         } catch (error) {
             return rejectWithValue(error.message);
@@ -47,13 +108,16 @@ export const updateCourse = createAsyncThunk(
     }
 );
 
-// --- 4. THUNK: Hapus Kelas dari Firebase (DELETE) ---
+// --- 4. DELETE: Hapus Kelas ---
 export const deleteCourse = createAsyncThunk(
     'courses/deleteCourse',
     async (id, { rejectWithValue }) => {
         try {
-            const courseDoc = doc(db, "courses", id);
-            await deleteDoc(courseDoc);
+            const response = await fetch(`${API_URL}/${id}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) throw new Error('Gagal menghapus kelas');
             return id;
         } catch (error) {
             return rejectWithValue(error.message);
@@ -61,7 +125,7 @@ export const deleteCourse = createAsyncThunk(
     }
 );
 
-// --- SLICE REDUX UTAMA ---
+// --- REDUX SLICE (Penyimpanan State Lokal) ---
 const courseSlice = createSlice({
     name: 'courses',
     initialState: {
@@ -72,9 +136,10 @@ const courseSlice = createSlice({
     reducers: {},
     extraReducers: (builder) => {
         builder
-
+            // Handle Fetch
             .addCase(fetchCourses.pending, (state) => {
                 state.isLoading = true;
+                state.error = null;
             })
             .addCase(fetchCourses.fulfilled, (state, action) => {
                 state.isLoading = false;
@@ -85,12 +150,13 @@ const courseSlice = createSlice({
                 state.error = action.payload;
             })
 
-            // Handle Add (Tambah Data)
+            // Handle Add
             .addCase(addCourse.fulfilled, (state, action) => {
-                state.data.push(action.payload);
+                // Taruh kelas baru di paling atas (index 0)
+                state.data.unshift(action.payload);
             })
 
-            // Handle Update (Edit Data)
+            // Handle Update
             .addCase(updateCourse.fulfilled, (state, action) => {
                 const index = state.data.findIndex(c => c.id === action.payload.id);
                 if (index !== -1) {
@@ -98,7 +164,7 @@ const courseSlice = createSlice({
                 }
             })
 
-            // Handle Delete (Hapus Data)
+            // Handle Delete
             .addCase(deleteCourse.fulfilled, (state, action) => {
                 state.data = state.data.filter(c => c.id !== action.payload);
             });

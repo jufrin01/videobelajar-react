@@ -3,9 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 
-// 1. IMPORT FIREBASE AUTH
-import { auth } from '../firebase/firebase';
-import { signInWithEmailAndPassword } from "firebase/auth";
+// FIREBASE AUTH DIHAPUS - Kita sekarang pakai Backend PostgreSQL + Node.js
 
 const Login = () => {
     const navigate = useNavigate();
@@ -23,26 +21,38 @@ const Login = () => {
         setErrorMsg("");
         setIsLoading(true);
 
-        // --- BYPASS ADMIN MANUAL (Sampai Anda punya tabel Admin di DB) ---
+        // --- BYPASS ADMIN MANUAL (Sesuai dengan tampilan UI Anda) ---
         if (email === "admin@gmail.com" && password === "admin123") {
             const adminData = { email: "admin@gmail.com", role: "admin", name: "Super Admin" };
             localStorage.setItem("user", JSON.stringify(adminData));
+            alert("✅ Berhasil Masuk sebagai Admin!");
             navigate("/admin");
             window.location.reload();
             return;
         }
 
+        // --- 2. LOGIN REAL KE BACKEND NODE.JS ---
         try {
-            // 2. CEK LOGIN KE FIREBASE
-            const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            // Nembak API Login yang ada di backend
+            const response = await fetch('http://localhost:5000/api/users/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
 
-            // 3. SIMPAN DATA KE LOCAL STORAGE
+            const data = await response.json();
+
+            // Jika respons dari backend bukan 200 OK (misal: password salah / email tidak ada)
+            if (!response.ok) {
+                throw new Error(data.error || "Terjadi kesalahan saat login.");
+            }
+
+            // 3. SIMPAN DATA KE LOCAL STORAGE JIKA SUKSES
             const userData = {
-                uid: user.uid,
-                email: user.email,
-                name: user.displayName || user.email.split('@')[0],
-                role: "user"
+                uid: data.id,
+                email: data.email,
+                name: data.name,
+                role: data.role || "user"
             };
             localStorage.setItem("user", JSON.stringify(userData));
 
@@ -51,14 +61,9 @@ const Login = () => {
             window.location.reload();
 
         } catch (error) {
-            console.error("Firebase Login Error:", error.code);
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                setErrorMsg("Email atau Kata Sandi salah.");
-            } else if (error.code === 'auth/too-many-requests') {
-                setErrorMsg("Terlalu banyak percobaan gagal. Coba lagi nanti.");
-            } else {
-                setErrorMsg("Terjadi kesalahan. Silakan coba lagi.");
-            }
+            console.error("Login Error:", error.message);
+            // Menampilkan pesan error dari backend ke UI
+            setErrorMsg(error.message);
         } finally {
             setIsLoading(false);
         }
@@ -79,7 +84,6 @@ const Login = () => {
                         <p>Demo Akun Admin: <b>admin@gmail.com</b> | Pass: <b>admin123</b></p>
                     </div>
 
-                    {/* Pesan Error */}
                     {errorMsg && (
                         <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm font-medium border border-red-100 text-center">
                             {errorMsg}
