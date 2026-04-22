@@ -1,9 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-// URL Backend Node.js Anda (Pastikan Backend sedang berjalan!)
-const API_URL = 'http://localhost:5000/api/courses';
+const API_URL = 'http://localhost:5000/course';
 
-// --- 1. READ: Ambil Data dari PostgreSQL ---
 export const fetchCourses = createAsyncThunk(
     'courses/fetchCourses',
     async (_, { rejectWithValue }) => {
@@ -13,7 +11,6 @@ export const fetchCourses = createAsyncThunk(
 
             const data = await response.json();
 
-            // Transformasi data PostgreSQL agar cocok dengan struktur UI React Anda
             const formattedData = data.map(course => ({
                 id: course.id,
                 title: course.title,
@@ -21,7 +18,6 @@ export const fetchCourses = createAsyncThunk(
                 description: course.description,
                 price: course.price,
                 image: course.image,
-                // Menggabungkan instructor_name & instructor_role menjadi satu object
                 instructor: {
                     name: course.instructor_name || "Admin",
                     role: course.instructor_role || "Tutor",
@@ -41,12 +37,11 @@ export const fetchCourses = createAsyncThunk(
     }
 );
 
-// --- 2. CREATE: Tambah Kelas Baru ---
 export const addCourse = createAsyncThunk(
     'courses/addCourse',
     async (newCourse, { rejectWithValue }) => {
         try {
-            // Ubah format data dari React agar cocok dengan yang diminta Backend
+
             const backendPayload = {
                 title: newCourse.title,
                 category: newCourse.category,
@@ -67,10 +62,9 @@ export const addCourse = createAsyncThunk(
 
             const savedData = await response.json();
 
-            // Kembalikan ke format React untuk di-push ke Redux State
             return {
                 id: savedData.id,
-                ...newCourse // Gunakan data asli dari UI agar langsung tampil
+                ...newCourse
             };
         } catch (error) {
             return rejectWithValue(error.message);
@@ -78,7 +72,7 @@ export const addCourse = createAsyncThunk(
     }
 );
 
-// --- 3. UPDATE: Edit Kelas ---
+
 export const updateCourse = createAsyncThunk(
     'courses/updateCourse',
     async ({ id, updatedData }, { rejectWithValue }) => {
@@ -108,7 +102,7 @@ export const updateCourse = createAsyncThunk(
     }
 );
 
-// --- 4. DELETE: Hapus Kelas ---
+
 export const deleteCourse = createAsyncThunk(
     'courses/deleteCourse',
     async (id, { rejectWithValue }) => {
@@ -152,7 +146,7 @@ const courseSlice = createSlice({
 
             // Handle Add
             .addCase(addCourse.fulfilled, (state, action) => {
-                // Taruh kelas baru di paling atas (index 0)
+
                 state.data.unshift(action.payload);
             })
 
