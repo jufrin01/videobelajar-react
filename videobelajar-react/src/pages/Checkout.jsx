@@ -1,28 +1,29 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import CheckoutNavbar from '../components/CheckoutNavbar';
 import PaymentAccordion from '../components/PaymentAccordion';
 import PaymentOption from '../components/PaymentOption';
 import CheckoutFooter from '../components/CheckoutFooter';
 
-import { CourseContext } from '../context/CourseContext';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchBanks } from '../store/bankSlice';
 
-const FALLBACK_BANKS = [
-    { id: "BCA", name: "BCA", logo: "https://upload.wikimedia.org/wikipedia/commons/5/5c/Bank_Central_Asia.svg" },
-    { id: "Mandiri", name: "Mandiri", logo: "https://upload.wikimedia.org/wikipedia/commons/a/ad/Bank_Mandiri_logo_2016.svg" },
-    { id: "BNI", name: "BNI", logo: "https://upload.wikimedia.org/wikipedia/id/5/55/BNI_logo.svg" },
-    { id: "BRI", name: "BRI", logo: "https://upload.wikimedia.org/wikipedia/commons/2/2e/BRI_2020.svg" },
+// Data statis tambahan untuk E-Wallet dan Kartu (karena di DB kita baru nyimpan Transfer Bank)
+const STATIC_EWALLET_CARD = [
     { id: "Dana", name: "Dana", logo: "https://upload.wikimedia.org/wikipedia/commons/7/72/Logo_dana_blue.svg" },
     { id: "Gopay", name: "GoPay", logo: "https://upload.wikimedia.org/wikipedia/commons/8/86/Gopay_logo.svg" },
-    { id: "OVO", name: "OVO", logo: "https://upload.wikimedia.org/wikipedia/commons/e/e1/OVO_logo.svg" }
+    { id: "OVO", name: "OVO", logo: "https://upload.wikimedia.org/wikipedia/commons/e/e1/OVO_logo.svg" },
+    { id: "Visa", name: "Visa", logo: "https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" },
+    { id: "Mastercard", name: "Mastercard", logo: "https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" }
 ];
 
 const Checkout = () => {
     const { id } = useParams();
-    const navigate = useNavigate();
+    const dispatch = useDispatch();
 
-    const { courses } = useContext(CourseContext);
+
+    const { data: courses } = useSelector((state) => state.courses);
+    const { data: dbBanks, isLoading: isLoadingBanks } = useSelector((state) => state.banks);
 
     const [selectedPayment, setSelectedPayment] = useState("BCA");
     const [expandedSection, setExpandedSection] = useState("bank");
@@ -32,43 +33,28 @@ const Checkout = () => {
         setExpandedSection(expandedSection === section ? "" : section);
     };
 
-    const [banksData, setBanksData] = useState([]);
-    const [isLoadingBanks, setIsLoadingBanks] = useState(true);
-
-    const DB_URL = 'https://videobelajarweb-default-rtdb.asia-southeast1.firebasedatabase.app';
-
+    // TRIGGER PENGAMBILAN DATA BANK DARI POSTGRESQL SAAT HALAMAN DIBUKA
     useEffect(() => {
-        const fetchBanks = async () => {
-            try {
-                const response = await axios.get(`${DB_URL}/banks.json`);
-                if (response.data) {
-                    const dataToProcess = response.data.banks ? response.data.banks : response.data;
+        dispatch(fetchBanks());
+        window.scrollTo(0, 0);
+    }, [dispatch]);
 
-                    const banksArray = [];
-                    for (const key in dataToProcess) {
-                        banksArray.push({
-                            id: key,
-                            ...dataToProcess[key]
-                        });
-                    }
-                    setBanksData(banksArray.length > 0 ? banksArray : FALLBACK_BANKS);
-                } else {
-                    setBanksData(FALLBACK_BANKS);
-                }
-            } catch (error) {
-                console.error("Gagal memuat data bank:", error);
-                setBanksData(FALLBACK_BANKS);
-            } finally {
-                setIsLoadingBanks(false);
-            }
-        };
-        fetchBanks();
-    }, []);
+    // GABUNGKAN DATA BANK DARI DB DENGAN E-WALLET STATIS
+    const banksData = useMemo(() => {
+        const mappedDbBanks = dbBanks.map(b => ({
+            id: b.name, // Gunakan nama bank sebagai ID (contoh: "BCA")
+            name: b.name,
+            logo: b.logo
+        }));
+        return [...mappedDbBanks, ...STATIC_EWALLET_CARD];
+    }, [dbBanks]);
 
+    //  AMBIL DATA KELAS YANG DIPILIH
     const course = useMemo(() => {
         if (!courses || courses.length === 0) return null;
 
-        const rawCourse = courses.find((item) => item.id === id);
+        // Pencarian aman (menyesuaikan tipe data ID)
+        const rawCourse = courses.find((item) => item.id.toString() === id);
         if (!rawCourse) return null;
 
         const priceNum = Number(rawCourse.price) || 0;
@@ -94,7 +80,7 @@ const Checkout = () => {
         }
     }, [course, adminFee]);
 
-
+    // Kategori Pembayaran
     const eWalletKeys = ["Dana", "Gopay", "OVO", "ShopeePay"];
     const cardKeys = ["Visa", "Mastercard"];
 
@@ -102,7 +88,7 @@ const Checkout = () => {
     const listEWallet = banksData.filter(b => eWalletKeys.includes(b.id));
     const listCard = banksData.filter(b => cardKeys.includes(b.id));
 
-
+    // Loading State
     if (!course) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col font-poppins items-center justify-center">
@@ -132,10 +118,9 @@ const Checkout = () => {
                             <div className="space-y-3">
 
                                 <PaymentAccordion title="Transfer Bank / Virtual Account" isOpen={expandedSection === 'bank'} onToggle={() => toggleSection('bank')}>
-                                    {/* PERBAIKAN: Menggunakan flex-col agar turun ke bawah secara berurutan */}
                                     <div className="flex flex-col gap-3 mt-3">
                                         {isLoadingBanks ? (
-                                            <p className="text-sm text-gray-500 px-2 animate-pulse">Memuat bank...</p>
+                                            <p className="text-sm text-gray-500 px-2 animate-pulse">Memuat bank dari server...</p>
                                         ) : listTransferBank.map(bank => (
                                             <PaymentOption
                                                 key={bank.id}
@@ -150,11 +135,8 @@ const Checkout = () => {
                                 </PaymentAccordion>
 
                                 <PaymentAccordion title="E-Wallet" isOpen={expandedSection === 'ewallet'} onToggle={() => toggleSection('ewallet')}>
-                                    {/* PERBAIKAN: Menggunakan flex-col agar turun ke bawah secara berurutan */}
                                     <div className="flex flex-col gap-3 mt-3">
-                                        {isLoadingBanks ? (
-                                            <p className="text-sm text-gray-500 px-2 animate-pulse">Memuat e-wallet...</p>
-                                        ) : listEWallet.length > 0 ? listEWallet.map(ewallet => (
+                                        {listEWallet.length > 0 ? listEWallet.map(ewallet => (
                                             <PaymentOption
                                                 key={ewallet.id}
                                                 id={ewallet.id}
@@ -170,7 +152,6 @@ const Checkout = () => {
                                 </PaymentAccordion>
 
                                 <PaymentAccordion title="Kartu Kredit / Debit" isOpen={expandedSection === 'card'} onToggle={() => toggleSection('card')}>
-                                    {/* PERBAIKAN: Menggunakan flex-col agar turun ke bawah secara berurutan */}
                                     <div className="flex flex-col gap-3 mt-3">
                                         {listCard.length > 0 ? listCard.map(card => (
                                             <PaymentOption

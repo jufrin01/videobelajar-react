@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
 
-// FIREBASE AUTH DIHAPUS - Kita sekarang pakai Backend PostgreSQL + Node.js
+import api from '../utils/api';
 
 const Login = () => {
     const navigate = useNavigate();
@@ -21,49 +21,32 @@ const Login = () => {
         setErrorMsg("");
         setIsLoading(true);
 
-        // --- BYPASS ADMIN MANUAL (Sesuai dengan tampilan UI Anda) ---
         if (email === "admin@gmail.com" && password === "admin123") {
-            const adminData = { email: "admin@gmail.com", role: "admin", name: "Super Admin" };
-            localStorage.setItem("user", JSON.stringify(adminData));
-            alert("✅ Berhasil Masuk sebagai Admin!");
+            // const adminData = { email: "admin@gmail.com", role: "admin", name: "Super Admin" };
+            // localStorage.setItem("user", JSON.stringify(adminData));
+            alert("Berhasil Masuk sebagai Admin!");
             navigate("/admin");
             window.location.reload();
             return;
         }
 
-        // --- 2. LOGIN REAL KE BACKEND NODE.JS ---
         try {
-            // Nembak API Login yang ada di backend
-            const response = await fetch('http://localhost:5000/api/users/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
 
-            const data = await response.json();
+            const response = await api.post('/users/login', { email, password });
+            const data = response.data;
 
-            // Jika respons dari backend bukan 200 OK (misal: password salah / email tidak ada)
-            if (!response.ok) {
-                throw new Error(data.error || "Terjadi kesalahan saat login.");
-            }
+            localStorage.setItem("user", JSON.stringify(data.user)); // Simpan info user
+            localStorage.setItem("accessToken", data.accessToken);   // Simpan Token Utama
+            localStorage.setItem("refreshToken", data.refreshToken); // Simpan Token Cadangan
 
-            // 3. SIMPAN DATA KE LOCAL STORAGE JIKA SUKSES
-            const userData = {
-                uid: data.id,
-                email: data.email,
-                name: data.name,
-                role: data.role || "user"
-            };
-            localStorage.setItem("user", JSON.stringify(userData));
-
-            alert("✅ Berhasil Masuk!");
+            alert("Berhasil Masuk!");
             navigate("/");
             window.location.reload();
 
         } catch (error) {
-            console.error("Login Error:", error.message);
-            // Menampilkan pesan error dari backend ke UI
-            setErrorMsg(error.message);
+            console.error("Login Error:", error);
+            const errorResponse = error.response?.data?.error || error.message || "Terjadi kesalahan saat login.";
+            setErrorMsg(errorResponse);
         } finally {
             setIsLoading(false);
         }

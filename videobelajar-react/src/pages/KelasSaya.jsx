@@ -1,19 +1,17 @@
-import React, { useState, useMemo, useEffect, useContext } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Layout from '../components/Layout';
 import UserSidebar from '../components/UserSidebar';
 import { Link, useNavigate } from 'react-router-dom';
 import Pagination from '../components/Pagination';
-import axios from 'axios';
 
-import { auth } from '../firebase/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { CourseContext } from '../context/CourseContext';
+import api from '../utils/api';
+import { useSelector } from 'react-redux';
 
 const KelasSaya = () => {
     const navigate = useNavigate();
 
-    // Ambil master data kursus dari database (Context)
-    const { courses } = useContext(CourseContext);
+    // Ambil master data kursus dari Redux (PostgreSQL)
+    const { data: courses } = useSelector((state) => state.courses);
 
     const [activeTab, setActiveTab] = useState("Semua Kelas");
     const [currentPage, setCurrentPage] = useState(1);
@@ -23,25 +21,43 @@ const KelasSaya = () => {
     const [myCourses, setMyCourses] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const DB_URL = 'https://videobelajarweb-default-rtdb.asia-southeast1.firebasedatabase.app';
-
-    // 2. AMBIL DATA KELAS BERDASARKAN PESANAN YANG BERHASIL
+    // 3. AMBIL DATA KELAS BERDASARKAN PESANAN YANG BERHASIL DARI BACKEND NODE.JS
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user && courses.length > 0) {
+        const fetchMyCourses = async () => {
+            const storedUser = localStorage.getItem("user");
+
+            if (!storedUser) {
+                // Jika belum login, tendang ke halaman login
+                navigate('/login');
+                return;
+            }
+
+            const user = JSON.parse(storedUser);
+
+            // Pastikan master data kelas dari Redux sudah ter-load
+            if (courses && courses.length > 0) {
                 try {
-                    // Ambil pesanan milik user ini
-                    const response = await axios.get(`${DB_URL}/orders/${user.uid}.json`);
+                    // Ambil pesanan milik user ini dari PostgreSQL via API
+                    const response = await api.get(`/orders/user/${user.id}`);
 
-                    if (response.data) {
-                        // Filter hanya pesanan yang statusnya "Berhasil"
-                        const successfulOrders = Object.values(response.data).filter(order => order.status === "Berhasil");
+                    if (response.data && response.data.length > 0) {
+                        // Filter hanya pesanan yang statusnya berhasil
+                        // (Menyesuaikan dengan berbagai kemungkinan string status dari backend)
+                        const successfulOrders = response.data.filter(order =>
+                            order.status === "Berhasil" ||
+                            order.status === "Sukses" ||
+                            order.status === "success" ||
+                            order.status === "settlement"
+                        );
 
-                        // Kumpulkan ID kelas yang sudah dibeli
-                        const ownedCourseIds = successfulOrders.map(order => order.courseId);
+                        // Kumpulkan ID kelas yang sudah dibeli (Bisa jadi course_id atau courseId)
+                        const ownedCourseIds = successfulOrders.map(order => order.course_id || order.courseId);
 
                         // Cocokkan dengan data kursus asli dari database
-                        const userOwnedCourses = courses.filter(course => ownedCourseIds.includes(course.id));
+                        // Kita ubah ke string untuk mencegah error perbandingan angka vs string
+                        const userOwnedCourses = courses.filter(course =>
+                            ownedCourseIds.some(id => id.toString() === course.id.toString())
+                        );
 
                         setMyCourses(userOwnedCourses);
                     } else {
@@ -50,17 +66,14 @@ const KelasSaya = () => {
                 } catch (error) {
                     console.error("Gagal mengambil data kelas saya:", error);
                 }
-            } else if (!user) {
-                // Jika belum login, tendang ke halaman login
-                navigate('/login');
             }
             setIsLoading(false);
-        });
+        };
 
-        return () => unsubscribe();
+        fetchMyCourses();
     }, [courses, navigate]);
 
-    // 3. LOGIKA FILTER (Berjalan / Selesai)
+    // 4. LOGIKA FILTER (Berjalan / Selesai)
     const filteredCourses = useMemo(() => {
         switch (activeTab) {
             case "Sedang Berjalan":

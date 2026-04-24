@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-// IMPORT FIREBASE AUTH
-import { auth } from '../firebase/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 
 const LearningNavbar = ({ title, progress, currentModule, totalModules, courseId }) => {
     const [user, setUser] = useState(null);
     const navigate = useNavigate();
-
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-        });
-        return () => unsubscribe();
+
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
     }, []);
 
     const isCompleted = progress === 100;
@@ -39,7 +36,8 @@ const LearningNavbar = ({ title, progress, currentModule, totalModules, courseId
                 <div className="flex items-center gap-3 md:gap-4 pl-4 border-l border-gray-100 ml-4">
                     <div className="text-right hidden sm:block">
                         <p className="text-xs font-bold text-gray-900 leading-none mb-1">
-                            {user?.displayName || "Siswa"}
+                            {/* Ubah displayName menjadi name sesuai database PostgreSQL */}
+                            {user?.name || "Siswa"}
                         </p>
                         <p className="text-[10px] text-[#3ECF4C] font-semibold">
                             {isCompleted ? "Selesai" : `Progres: ${progress || 0}%`}
@@ -47,7 +45,8 @@ const LearningNavbar = ({ title, progress, currentModule, totalModules, courseId
                     </div>
                     <Link to="/profile">
                         <img
-                            src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || 'U'}&background=random`}
+                            // Jika belum punya avatar, generate berdasarkan inisial namanya
+                            src={user?.avatar || `https://ui-avatars.com/api/?name=${user?.name ? user.name.replace(/\s+/g, '+') : 'U'}&background=random`}
                             alt="User"
                             className="w-8 h-8 md:w-10 md:h-10 rounded-full border border-gray-100 object-cover"
                         />

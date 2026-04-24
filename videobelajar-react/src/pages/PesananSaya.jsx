@@ -1,24 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import UserSidebar from '../components/UserSidebar';
 import Pagination from '../components/Pagination';
 
-// 1. IMPORT FIREBASE AUTH
-import { auth } from '../firebase/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import api from '../utils/api';
 
 const PesananSaya = () => {
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("Semua Pesanan");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
-    // 2. STATE UNTUK DATA PESANAN DARI FIREBASE
+    // STATE UNTUK DATA PESANAN DARI POSTGRESQL
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-
-    const DB_URL = 'https://videobelajarweb-default-rtdb.asia-southeast1.firebasedatabase.app';
 
     // Helper Status (Warna dan Tombol Aksi)
     const getStatusConfig = (status) => {
@@ -50,7 +46,7 @@ const PesananSaya = () => {
             default:
                 return {
                     style: 'bg-gray-100 text-gray-600',
-                    label: status,
+                    label: status || "Diproses",
                     actionLabel: 'Detail',
                     actionLink: '#',
                     actionStyle: 'bg-gray-200 text-gray-700'
@@ -58,36 +54,42 @@ const PesananSaya = () => {
         }
     };
 
-    // 3. MENGAMBIL DATA PESANAN BERDASARKAN USER YANG LOGIN
+    // MENGAMBIL DATA PESANAN BERDASARKAN USER YANG LOGIN (JWT)
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                try {
-                    // Ambil pesanan spesifik milik user ini
-                    const response = await axios.get(`${DB_URL}/orders/${user.uid}.json`);
-                    const fetchedOrders = [];
+        const fetchOrders = async () => {
+            const storedUser = localStorage.getItem("user");
 
-                    if (response.data) {
-                        for (const key in response.data) {
-                            fetchedOrders.push({
-                                id: key, // ID pesanan dari Firebase
-                                ...response.data[key]
-                            });
-                        }
-                    }
-
-                    // Urutkan dari pesanan terbaru (berdasarkan tanggal)
-                    fetchedOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    setOrders(fetchedOrders);
-                } catch (error) {
-                    console.error("Gagal mengambil data pesanan:", error);
-                }
+            if (!storedUser) {
+                navigate('/login');
+                return;
             }
-            setIsLoading(false);
-        });
 
-        return () => unsubscribe();
-    }, []);
+            const user = JSON.parse(storedUser);
+
+            try {
+                const response = await api.get(`/orders/user/${user.id}`);
+
+                if (response.data && Array.isArray(response.data)) {
+                    const fetchedOrders = response.data;
+
+                    // Urutkan dari pesanan terbaru (berdasarkan field created_at atau date)
+                    fetchedOrders.sort((a, b) => {
+                        const dateA = new Date(a.created_at || a.date);
+                        const dateB = new Date(b.created_at || b.date);
+                        return dateB - dateA;
+                    });
+
+                    setOrders(fetchedOrders);
+                }
+            } catch (error) {
+                console.error("Gagal mengambil data pesanan:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchOrders();
+    }, [navigate]);
 
     // Logika Filter Tab
     const filteredOrders = orders.filter(order => activeTab === "Semua Pesanan" ? true : order.status === activeTab);
@@ -137,21 +139,33 @@ const PesananSaya = () => {
                                     <p className="font-medium">Memuat pesanan Anda...</p>
                                 </div>
                             ) : currentOrders.length > 0 ? (
-                                currentOrders.map(order => {
+                                currentOrders.map((order, index) => {
                                     const statusConfig = getStatusConfig(order.status);
 
-                                    // Format Tanggal yang ramah dibaca (Misal: 12 Nov 2024, 14:30 WIB)
-                                    const formattedDate = new Date(order.date).toLocaleDateString('id-ID', {
+
+                                    const orderDate = order.created_at || order.date || new Date();
+                                    const formattedDate = new Date(orderDate).toLocaleDateString('id-ID', {
                                         day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
                                     });
 
+                                    // Menggunakan ID pesanan dari DB
+                                    const displayId = order.id ? String(order.id).padStart(5, '0') : `ORD-${index}`;
+
+                                    // Mendukung snake_case (Postgres) atau camelCase
+                                    const courseId = order.course_id || order.courseId;
+                                    const courseImage = order.course_image || order.courseImage;
+                                    const courseTitle = order.course_title || order.courseTitle;
+                                    const courseCategory = order.course_category || order.courseCategory;
+                                    const totalPayment = order.total_payment || order.totalPayment;
+                                    const paymentMethod = order.payment_method || order.paymentMethod;
+
                                     return (
-                                        <div key={order.id} className="p-4 md:p-6 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                                        <div key={order.id || index} className="p-4 md:p-6 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
                                             <div className="flex flex-col md:flex-row justify-between md:items-center gap-2 mb-4">
                                                 <div className="flex items-center gap-3">
                                                     <i className="fa-solid fa-bag-shopping text-gray-400"></i>
                                                     <div>
-                                                        <span className="text-xs font-bold text-gray-500">ID: {order.id.substring(1, 9).toUpperCase()}</span>
+                                                        <span className="text-xs font-bold text-gray-500">ID: {displayId}</span>
                                                         <span className="text-xs text-gray-400 ml-2">• {formattedDate}</span>
                                                     </div>
                                                 </div>
@@ -162,25 +176,25 @@ const PesananSaya = () => {
 
                                             <div className="flex gap-4 mb-4">
                                                 <div className="w-20 h-14 rounded-lg overflow-hidden shrink-0 border border-gray-100 bg-gray-200">
-                                                    <img src={order.courseImage} alt={order.courseTitle} className="w-full h-full object-cover" />
+                                                    <img src={courseImage} alt={courseTitle} className="w-full h-full object-cover" />
                                                 </div>
                                                 <div className="flex-1">
-                                                    <h4 className="font-bold text-gray-900 text-sm line-clamp-2 leading-snug">{order.courseTitle}</h4>
-                                                    <p className="text-xs text-gray-500 mt-1">{order.courseCategory}</p>
+                                                    <h4 className="font-bold text-gray-900 text-sm line-clamp-2 leading-snug">{courseTitle}</h4>
+                                                    <p className="text-xs text-gray-500 mt-1">{courseCategory}</p>
                                                 </div>
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-3 items-end gap-4 border-t border-gray-50 pt-4">
                                                 <div>
                                                     <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Metode Pembayaran</p>
-                                                    <p className="text-sm font-semibold text-gray-700">{order.paymentMethod}</p>
+                                                    <p className="text-sm font-semibold text-gray-700">{paymentMethod}</p>
                                                 </div>
                                                 <div>
                                                     <p className="text-[10px] text-gray-400 uppercase font-bold mb-0.5">Total Belanja</p>
-                                                    <span className="text-sm font-bold text-[#3ECF4C]">Rp {Number(order.totalPayment).toLocaleString('id-ID')}</span>
+                                                    <span className="text-sm font-bold text-[#3ECF4C]">Rp {Number(totalPayment).toLocaleString('id-ID')}</span>
                                                 </div>
                                                 <div className="flex justify-end mt-2 md:mt-0">
-                                                    <Link to={`${statusConfig.actionLink}${order.courseId}`} className={`px-6 py-2 rounded-lg text-sm font-bold shadow-sm transition-transform active:scale-95 text-center w-full md:w-auto ${statusConfig.actionStyle}`}>
+                                                    <Link to={`${statusConfig.actionLink}${courseId}`} className={`px-6 py-2 rounded-lg text-sm font-bold shadow-sm transition-transform active:scale-95 text-center w-full md:w-auto ${statusConfig.actionStyle}`}>
                                                         {statusConfig.actionLabel}
                                                     </Link>
                                                 </div>

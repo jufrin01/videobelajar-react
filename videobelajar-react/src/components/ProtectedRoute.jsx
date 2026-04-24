@@ -6,8 +6,6 @@ const ProtectedRoute = ({ children }) => {
     const location = useLocation();
 
     if (!user) {
-        // Jika belum login, tendang ke /login
-        // 'state={{ from: location }}' berguna jika nanti mau redirect balik setelah login
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 

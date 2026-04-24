@@ -34,7 +34,7 @@ const PaymentPending = () => {
                     {/* Tombol Kembali */}
                     <Link
                         to="/pesanan-saya"
-                        className="block w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 rounded-lg shadow-lg hover:shadow-xl transition-all transform active:scale-95"
+                        className="block w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 rounded-lg shadow-lg hover:shadow-xl transition-all transform active:scale-95"
                     >
                         Lihat Detail Pesanan
                     </Link>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import logoImage from '../assets/images/logo.png';
-import userPhoto from '../assets/images/user.png';
+import api from '../utils/api';
 
 const Navbar = () => {
     const location = useLocation();
@@ -13,34 +13,37 @@ const Navbar = () => {
     const [isDesktopDropdownOpen, setIsDesktopDropdownOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    // AMBIL DATA USER DARI LOCAL STORAGE
     const user = JSON.parse(localStorage.getItem("user"));
-    const isAdmin = user && user.role === 'admin'; // Tambahan role admin
+    const isAdmin = user && user.role === 'admin';
 
     const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
-    // --- FUNGSI LOGOUT ---
-    const handleLogout = () => {
-        setIsDesktopDropdownOpen(false);
-        setIsMobileMenuOpen(false);
+    const handleLogout = async () => {
+        try {
+            if (user?.id) {
+                await api.post('/users/logout', { userId: user.id });
+            }
+        } catch (error) {
+            console.error("Logout Error:", error);
+        } finally {
+            localStorage.removeItem("user");
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("refreshToken");
 
-        localStorage.removeItem("user");
+            setIsDesktopDropdownOpen(false);
+            setIsMobileMenuOpen(false);
 
-        setTimeout(() => {
+            // Redirect ke home dan refresh
             navigate("/");
             window.location.reload();
-        }, 300);
+        }
     };
 
-    // --- TUTUP MENU SAAT KLIK DI LUAR AREA ---
     useEffect(() => {
         const handleClickOutside = (event) => {
-            // Tutup dropdown desktop
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setIsDesktopDropdownOpen(false);
             }
-
-            // 2. LOGIKA DIPERBAIKI: Tutup menu mobile JIKA klik di luar menu DAN BUKAN klik di tombol hamburger
             if (
                 isMobileMenuOpen &&
                 mobileMenuRef.current &&
@@ -51,16 +54,16 @@ const Navbar = () => {
                 setIsMobileMenuOpen(false);
             }
         };
-
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [isMobileMenuOpen]); // Tambahkan dependency isMobileMenuOpen
+    }, [isMobileMenuOpen]);
 
-    // Tutup menu otomatis jika pindah halaman
     useEffect(() => {
         setIsMobileMenuOpen(false);
         setIsDesktopDropdownOpen(false);
     }, [location.pathname]);
+
+    const userAvatar = user?.avatar || `https://ui-avatars.com/api/?name=${user?.name ? user.name.replace(/\s+/g, '+') : 'U'}&background=random`;
 
     return (
         <nav className="w-full bg-white border-b border-gray-100 sticky top-0 z-50 font-poppins shadow-sm">
@@ -74,19 +77,17 @@ const Navbar = () => {
                 {/* AREA KANAN */}
                 <div className="flex items-center gap-4">
 
-                    {/* --- DESKTOP MENU --- */}
                     {!isAuthPage && (
                         <div className="hidden md:flex items-center gap-6">
                             <Link to="/kategori" className="text-gray-600 font-medium hover:text-[#3ECF4C] transition-colors">Kategori</Link>
 
                             {user ? (
-                                /* KONDISI: SUDAH LOGIN (Desktop) */
                                 <div className="relative" ref={dropdownRef}>
                                     <div
                                         className="flex items-center gap-3 cursor-pointer p-1.5 pr-4 rounded-full border border-gray-100 hover:bg-gray-50 transition-colors"
                                         onClick={() => setIsDesktopDropdownOpen(!isDesktopDropdownOpen)}
                                     >
-                                        <img src={userPhoto} alt="Profile" className="w-9 h-9 rounded-full object-cover bg-white" />
+                                        <img src={userAvatar} alt="Profile" className="w-9 h-9 rounded-full object-cover bg-white border border-gray-100" />
                                         <div className="hidden lg:flex flex-col">
                                             <span className="text-sm font-bold text-gray-800 leading-tight">{user.name || "User"}</span>
                                             <span className="text-[10px] font-semibold text-[#3ECF4C] uppercase leading-tight">{user.role || "User"}</span>
@@ -94,19 +95,16 @@ const Navbar = () => {
                                         <i className={`fa-solid fa-chevron-down text-xs text-gray-400 ml-1 transition-transform ${isDesktopDropdownOpen ? 'rotate-180' : ''}`}></i>
                                     </div>
 
-                                    {/* Dropdown Desktop */}
                                     {isDesktopDropdownOpen && (
                                         <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border border-gray-100 p-2 animate-fade-in origin-top-right z-50">
                                             <div className="px-4 py-3 flex items-center gap-3 mb-2">
-                                                <img src={userPhoto} alt="User" className="w-10 h-10 rounded-full bg-gray-100" />
+                                                <img src={userAvatar} alt="User" className="w-10 h-10 rounded-full bg-gray-100 object-cover" />
                                                 <div className="overflow-hidden">
                                                     <p className="font-bold text-gray-900 text-sm truncate">{user.name}</p>
                                                     <p className="text-xs text-gray-500 truncate">{user.email}</p>
                                                 </div>
                                             </div>
-
                                             <hr className="border-gray-100 my-1" />
-
                                             <div className="py-2 flex flex-col gap-1">
                                                 {isAdmin ? (
                                                     <Link to="/admin" className="px-4 py-2 text-sm text-gray-700 hover:text-[#3ECF4C] hover:bg-[#F3FDE8] rounded-lg flex items-center gap-3 font-medium transition-colors">
@@ -126,7 +124,6 @@ const Navbar = () => {
                                                     </>
                                                 )}
                                             </div>
-
                                             <hr className="border-gray-100 my-1" />
                                             <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 mt-1 text-sm text-red-500 font-bold hover:bg-red-50 rounded-lg flex justify-between items-center transition-colors">
                                                 Keluar <i className="fa-solid fa-arrow-right-from-bracket"></i>
@@ -135,7 +132,6 @@ const Navbar = () => {
                                     )}
                                 </div>
                             ) : (
-                                /* KONDISI: BELUM LOGIN (Desktop) */
                                 <div className="flex items-center gap-3">
                                     <Link to="/login" className="text-gray-700 hover:text-[#3ECF4C] font-bold py-2.5 px-6 rounded-lg transition-colors text-sm">Masuk</Link>
                                     <Link to="/register" className="bg-[#3ECF4C] hover:bg-green-600 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition-transform active:scale-95 text-sm">Daftar</Link>
@@ -144,16 +140,14 @@ const Navbar = () => {
                         </div>
                     )}
 
-                    {/* --- TOMBOL HAMBURGER MOBILE --- */}
                     {!isAuthPage && (
                         <button
-                            ref={hamburgerBtnRef} // 3. Pasang ref di sini
+                            ref={hamburgerBtnRef}
                             className="md:hidden flex items-center justify-center w-10 h-10 text-gray-600 focus:outline-none bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors z-50"
                             onClick={(e) => {
-                                e.stopPropagation(); // Mencegah event bocor ke document
+                                e.stopPropagation();
                                 setIsMobileMenuOpen(!isMobileMenuOpen);
                             }}
-                            aria-label="Toggle Menu"
                         >
                             <i className={`fa-solid ${isMobileMenuOpen ? 'fa-xmark' : 'fa-bars'} text-xl transition-all duration-300`}></i>
                         </button>
@@ -161,21 +155,17 @@ const Navbar = () => {
                 </div>
             </div>
 
-            {/* === DROPDOWN MENU MOBILE (Overlay) === */}
+            {/* === MOBILE MENU === */}
             {isMobileMenuOpen && !isAuthPage && (
-                <div
-                    ref={mobileMenuRef}
-                    className="md:hidden absolute top-[80px] left-0 w-full bg-white shadow-xl border-b border-gray-100 p-5 flex flex-col gap-3 animate-fade-in-down z-40"
-                >
+                <div ref={mobileMenuRef} className="md:hidden absolute top-[80px] left-0 w-full bg-white shadow-xl border-b border-gray-100 p-5 flex flex-col gap-3 animate-fade-in-down z-40">
                     <Link to="/kategori" className="py-3 text-gray-700 font-medium border-b border-gray-50 flex justify-between items-center">
                         Kategori <i className="fa-solid fa-chevron-right text-xs text-gray-400"></i>
                     </Link>
 
                     {user ? (
-                        /* Menu Mobile: SUDAH LOGIN */
                         <div className="flex flex-col mt-2">
                             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-4 border border-gray-100">
-                                <img src={userPhoto} alt="User" className="w-12 h-12 rounded-full object-cover bg-white" />
+                                <img src={userAvatar} alt="User" className="w-12 h-12 rounded-full object-cover bg-white border border-gray-200" />
                                 <div className="overflow-hidden">
                                     <p className="font-bold text-gray-900 text-sm truncate">{user.name || "User"}</p>
                                     <p className="text-xs text-[#3ECF4C] font-semibold uppercase">{user.role || "User"}</p>
@@ -199,17 +189,15 @@ const Navbar = () => {
                                     </Link>
                                 </>
                             )}
-
                             <hr className="border-gray-100 my-3" />
                             <button onClick={handleLogout} className="w-full text-left p-3 text-red-500 font-bold flex items-center justify-between bg-red-50 rounded-lg">
                                 Keluar <i className="fa-solid fa-arrow-right-from-bracket"></i>
                             </button>
                         </div>
                     ) : (
-                        /* Menu Mobile: BELUM LOGIN */
                         <div className="flex flex-col gap-3 mt-4">
-                            <Link to="/login" className="w-full border-2 border-[#3ECF4C] text-[#3ECF4C] text-center font-bold py-3 rounded-xl transition-colors active:bg-green-50">Masuk</Link>
-                            <Link to="/register" className="w-full bg-[#3ECF4C] text-white text-center font-bold py-3 rounded-xl shadow-md active:scale-95 transition-transform">Daftar</Link>
+                            <Link to="/login" className="w-full border-2 border-[#3ECF4C] text-[#3ECF4C] text-center font-bold py-3 rounded-xl">Masuk</Link>
+                            <Link to="/register" className="w-full bg-[#3ECF4C] text-white text-center font-bold py-3 rounded-xl">Daftar</Link>
                         </div>
                     )}
                 </div>

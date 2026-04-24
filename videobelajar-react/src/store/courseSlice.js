@@ -1,47 +1,44 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../utils/api';
 
-const API_URL = 'http://localhost:5000/course';
-
+// --- MENGIRIM QUERY PARAMS KE BACKEND ---
+// Tambahkan parameter "params = {}" yang akan ditangkap oleh Axios
 export const fetchCourses = createAsyncThunk(
     'courses/fetchCourses',
-    async (_, { rejectWithValue }) => {
+    async (params = {}, { rejectWithValue }) => {
         try {
-            const response = await fetch(API_URL);
-            if (!response.ok) throw new Error('Gagal mengambil data dari server');
+            // Axios otomatis mengubah object params menjadi query URL (contoh: ?search=react&sort=low)
+            const response = await api.get('/course', { params });
 
-            const data = await response.json();
-
-            const formattedData = data.map(course => ({
+            return response.data.map(course => ({
                 id: course.id,
                 title: course.title,
                 category: course.category,
                 description: course.description,
                 price: course.price,
                 image: course.image,
+
                 instructor: {
                     name: course.instructor_name || "Admin",
                     role: course.instructor_role || "Tutor",
                     avatar: `https://ui-avatars.com/api/?name=${(course.instructor_name || 'A').replace(/\s+/g, '+')}`
                 },
-                // Fallback untuk modul & review (karena di Postgres belum kita buat tabelnya)
                 modules: [],
                 userReviews: [],
                 rating: 0,
                 reviews: 0
             }));
-
-            return formattedData;
         } catch (error) {
-            return rejectWithValue(error.message);
+            return rejectWithValue(error.response?.data?.error || error.message);
         }
     }
 );
 
+// --- CREATE: Tambah Kelas Baru ---
 export const addCourse = createAsyncThunk(
     'courses/addCourse',
     async (newCourse, { rejectWithValue }) => {
         try {
-
             const backendPayload = {
                 title: newCourse.title,
                 category: newCourse.category,
@@ -52,27 +49,20 @@ export const addCourse = createAsyncThunk(
                 instructorRole: newCourse.instructor?.role || "Tutor"
             };
 
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(backendPayload)
-            });
-
-            if (!response.ok) throw new Error('Gagal menambah kelas ke database');
-
-            const savedData = await response.json();
+            const response = await api.post('/course', backendPayload);
+            const savedData = response.data;
 
             return {
                 id: savedData.id,
                 ...newCourse
             };
         } catch (error) {
-            return rejectWithValue(error.message);
+            return rejectWithValue(error.response?.data?.error || error.message);
         }
     }
 );
 
-
+// ---  UPDATE: Edit Kelas ---
 export const updateCourse = createAsyncThunk(
     'courses/updateCourse',
     async ({ id, updatedData }, { rejectWithValue }) => {
@@ -87,39 +77,28 @@ export const updateCourse = createAsyncThunk(
                 instructorRole: updatedData.instructor?.role || "Tutor"
             };
 
-            const response = await fetch(`${API_URL}/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(backendPayload)
-            });
-
-            if (!response.ok) throw new Error('Gagal mengupdate kelas');
-
+            await api.put(`/course/${id}`, backendPayload);
             return { id, updatedData };
         } catch (error) {
-            return rejectWithValue(error.message);
+            return rejectWithValue(error.response?.data?.error || error.message);
         }
     }
 );
 
-
+// --- DELETE: Hapus Kelas ---
 export const deleteCourse = createAsyncThunk(
     'courses/deleteCourse',
     async (id, { rejectWithValue }) => {
         try {
-            const response = await fetch(`${API_URL}/${id}`, {
-                method: 'DELETE'
-            });
-
-            if (!response.ok) throw new Error('Gagal menghapus kelas');
+            await api.delete(`/course/${id}`);
             return id;
         } catch (error) {
-            return rejectWithValue(error.message);
+            return rejectWithValue(error.response?.data?.error || error.message);
         }
     }
 );
 
-// --- REDUX SLICE (Penyimpanan State Lokal) ---
+// --- REDUX SLICE ---
 const courseSlice = createSlice({
     name: 'courses',
     initialState: {
@@ -130,7 +109,6 @@ const courseSlice = createSlice({
     reducers: {},
     extraReducers: (builder) => {
         builder
-            // Handle Fetch
             .addCase(fetchCourses.pending, (state) => {
                 state.isLoading = true;
                 state.error = null;
@@ -143,22 +121,15 @@ const courseSlice = createSlice({
                 state.isLoading = false;
                 state.error = action.payload;
             })
-
-            // Handle Add
             .addCase(addCourse.fulfilled, (state, action) => {
-
                 state.data.unshift(action.payload);
             })
-
-            // Handle Update
             .addCase(updateCourse.fulfilled, (state, action) => {
                 const index = state.data.findIndex(c => c.id === action.payload.id);
                 if (index !== -1) {
                     state.data[index] = { ...state.data[index], ...action.payload.updatedData };
                 }
             })
-
-            // Handle Delete
             .addCase(deleteCourse.fulfilled, (state, action) => {
                 state.data = state.data.filter(c => c.id !== action.payload);
             });

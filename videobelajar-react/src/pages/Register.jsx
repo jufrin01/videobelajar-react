@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import FormInput from '../components/FormInput';
-
+import api from '../utils/api';
 
 const Register = () => {
     const navigate = useNavigate();
@@ -42,38 +42,21 @@ const Register = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch('http://localhost:5000/api/users/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: formData.name,
-                    email: formData.email,
-                    password: formData.password,
-                    role: "user"
-                })
+
+            const response = await api.post('/users/register', {
+                name: formData.name,
+                email: formData.email,
+                password: formData.password,
+                role: "user"
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Terjadi kesalahan sistem. Silakan coba lagi.");
-            }
-
-            const userData = {
-                uid: data.id,
-                email: data.email,
-                name: data.name,
-                role: data.role || "user"
-            };
-            localStorage.setItem("user", JSON.stringify(userData));
-
-            alert("Pendaftaran Berhasil! Akun Anda sudah terdaftar di Database.");
-            navigate("/"); // Langsung ke Beranda
-            window.location.reload();
+            alert("Pendaftaran Berhasil! Silakan masuk menggunakan akun baru Anda.");
+            navigate("/login");
 
         } catch (error) {
-            console.error("Register Error:", error.message);
-            setErrorMsg(error.message);
+            console.error("Register Error:", error);
+            const errorResponse = error.response?.data?.error || error.message || "Terjadi kesalahan sistem. Silakan coba lagi.";
+            setErrorMsg(errorResponse);
         } finally {
             setIsLoading(false);
         }

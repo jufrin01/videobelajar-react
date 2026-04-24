@@ -1,24 +1,22 @@
-import React, { useState, useMemo, useEffect, useContext } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import LearningNavbar from '../components/LearningNavbar';
 import StickyFooter from '../components/StickyFooter';
 import Modal from '../components/Modal';
 import { useParams, useNavigate } from 'react-router-dom';
 
-// 1. IMPORT FIREBASE DAN CONTEXT
-import { CourseContext } from '../context/CourseContext';
-import { auth } from '../firebase/firebase';
+import { useSelector } from 'react-redux';
 
 const ClassDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    // 2. MENGAMBIL DATA DARI CONTEXT (FIREBASE)
-    const { courses, updateCourse } = useContext(CourseContext);
+    const { data: courses } = useSelector((state) => state.courses);
 
-    // MENCARI DATA KELAS BERDASARKAN ID STRING
+    // MENCARI DATA KELAS BERDASARKAN ID
     const course = useMemo(() => {
         if (!courses || courses.length === 0) return null;
-        return courses.find(c => c.id === id);
+        // Karena ID dari URL (useParams) berupa String, dan ID Postgres berupa Angka (Number)
+        return courses.find(c => c.id.toString() === id);
     }, [courses, id]);
 
     // Handle Data Not Found atau Loading
@@ -96,7 +94,6 @@ const ClassDetail = () => {
             if (answers[idx] === q.correctAnswer) correctCount++;
         });
 
-        // Mencegah pembagian 0 jika pertanyaan kosong
         const totalQ = currentQuestions.length || 1;
         const finalScore = Math.round((correctCount / totalQ) * 100);
 
@@ -116,53 +113,35 @@ const ClassDetail = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    // 4. HANDLER SUBMIT REVIEW KE FIREBASE
+    // 4. HANDLER SUBMIT REVIEW (Diperbarui dengan Local Storage)
     const handleSubmitReview = async () => {
         if (!userComment.trim()) {
             return alert("Komentar review tidak boleh kosong!");
         }
 
-        const currentUser = auth.currentUser || JSON.parse(localStorage.getItem("user"));
-        if (!currentUser) {
+        const storedUser = localStorage.getItem("user");
+        if (!storedUser) {
             alert("Silakan login kembali untuk memberikan ulasan.");
             return navigate('/login');
         }
+        const currentUser = JSON.parse(storedUser);
 
         setIsSubmittingReview(true);
 
         try {
-            // A. Siapkan data Review baru
-            const newReview = {
-                id: Date.now(),
-                name: currentUser.displayName || currentUser.name || currentUser.email.split('@')[0],
-                role: "Siswa",
-                rating: userRating,
-                comment: userComment,
-                avatar: currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.name || 'U'}&background=random`
-            };
+            // Karena tabel Reviews belum dibuat di PostgreSQL,
+            // Kita simulasikan UI sukses untuk sementara waktu
+            setTimeout(() => {
+                alert(`Terima kasih ${currentUser.name}! Review ${userRating} Bintang Anda berhasil dikirim.`);
+                setShowReviewModal(false);
+                setUserRating(5);
+                setUserComment("");
+                setIsSubmittingReview(false);
+            }, 1000);
 
-            const existingReviews = course.userReviews || [];
-            const updatedReviews = [...existingReviews, newReview];
-
-            // B. Hitung ulang rata-rata bintang
-            const totalRatingSum = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
-            const newAverageRating = (totalRatingSum / updatedReviews.length).toFixed(1);
-
-            // C. Kirim ke Firebase via CourseContext
-            await updateCourse(course.id, {
-                userReviews: updatedReviews,
-                rating: Number(newAverageRating),
-                reviews: updatedReviews.length
-            });
-
-            alert(`Terima kasih! Review ${userRating} Bintang Anda telah disimpan.`);
-            setShowReviewModal(false);
-            setUserRating(5);
-            setUserComment("");
         } catch (error) {
             console.error("Gagal mengirim ulasan:", error);
             alert("Terjadi kesalahan saat menyimpan review.");
-        } finally {
             setIsSubmittingReview(false);
         }
     };
@@ -232,7 +211,7 @@ const ClassDetail = () => {
 
     const todayDate = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-    // Jika kelas tidak memiliki modul/materi
+    // Jika kelas tidak memiliki modul/materi (Fallback Aman)
     if (allItems.length === 0) {
         return (
             <div className="min-h-screen bg-white font-poppins flex flex-col relative">

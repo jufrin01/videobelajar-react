@@ -1,16 +1,17 @@
-import React, { useState, useMemo, useEffect, useContext } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Layout from '../components/Layout';
 import CourseCard from '../components/CourseCard';
 import FilterGroup from '../components/FilterGroup';
 import CheckboxItem from '../components/CheckboxItem';
 import Pagination from '../components/Pagination';
 
-// IMPORT CONTEXT (Sumber data Firebase)
-import { CourseContext } from '../context/CourseContext';
+
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchCourses } from '../store/courseSlice';
 
 const Kategori = () => {
-    // 1. AMBIL DATA DARI FIREBASE
-    const { courses } = useContext(CourseContext);
+    const dispatch = useDispatch();
+    const { data: courses, isLoading } = useSelector((state) => state.courses);
 
     // STATE FILTER & SEARCH
     const [searchTerm, setSearchTerm] = useState("");
@@ -21,29 +22,42 @@ const Kategori = () => {
 
     // STATE PAGINATION
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 9; // Menampilkan 9 kursus per halaman
+    const itemsPerPage = 9;
 
-    // 2. DATA TRANSFORMATION / MAPPING DARI FIREBASE
+    // TRIGGER BACKEND (SERVER-SIDE SEARCH & SORT)
+
+    useEffect(() => {
+
+        const delayDebounceFn = setTimeout(() => {
+            const queryParams = {};
+
+            if (searchTerm) queryParams.search = searchTerm;
+            if (sortOption !== "default") queryParams.sort = sortOption;
+            // Mengirim parameter ke Backend via Redux
+            dispatch(fetchCourses(queryParams));
+
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchTerm, sortOption, dispatch]);
+
+    // MAPPING DATA (Persiapan Filter Sidebar Lokal)
     const enrichedData = useMemo(() => {
-        // Guard clause: Jika data dari Firebase belum siap atau kosong
         if (!courses || courses.length === 0) return [];
 
         return courses.map(course => {
             let filterCat = "Lainnya";
             const c = course.category || "";
 
-            // Mapping kategori dari input Admin ke filter sidebar
             if (["Marketing", "Pemasaran"].includes(c)) filterCat = "Pemasaran";
-            if (["UI/UX Design", "Data Science", "IT Security", "Programming", "Teknologi", "IT & Software"].includes(c)) filterCat = "Digital & Teknologi";
+            if (["UI/UX Design", "Data Science", "IT Security", "Programming", "Teknologi", "IT & Software", "Web Development"].includes(c)) filterCat = "Digital & Teknologi";
             if (["Soft Skills", "Language", "Creative", "Pengembangan Diri", "Desain"].includes(c)) filterCat = "Pengembangan Diri";
             if (["Business", "Finance", "Bisnis"].includes(c)) filterCat = "Bisnis Manajemen";
 
-            // Menggunakan harga asli dari Firebase
             const priceVal = Number(course.price) || 0;
             const isFree = priceVal === 0;
 
-            // Dummy logic durasi karena di Firebase belum ada input durasi spesifik
-            const totalMod = course.totalModules || 0;
+            const totalMod = course.modules ? course.modules.length : 0;
             const durationType = totalMod > 15 ? "Lebih dari 8 Jam" : (totalMod > 8 ? "4 - 8 Jam" : "Kurang dari 4 Jam");
 
             return {
@@ -54,27 +68,19 @@ const Kategori = () => {
                 durationFilter: durationType
             };
         });
-    }, [courses]); // Dependency diubah menjadi courses dari context
+    }, [courses]);
 
-    // 3. LOGIKA FILTERING UTAMA
+    // LOGIKA FILTERING CHECKBOX LOKAL (Tanpa Search & Sort)
     const filteredCourses = useMemo(() => {
-        let result = enrichedData.filter((course) => {
-            const matchSearch = course.title?.toLowerCase().includes(searchTerm.toLowerCase());
+        return enrichedData.filter((course) => {
             const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(course.filterCategory);
             const matchPrice = selectedPrices.length === 0 || selectedPrices.includes(course.priceType);
             const matchDuration = selectedDurations.length === 0 || selectedDurations.includes(course.durationFilter);
-            return matchSearch && matchCategory && matchPrice && matchDuration;
+            return matchCategory && matchPrice && matchDuration;
         });
+    }, [selectedCategories, selectedPrices, selectedDurations, enrichedData]);
 
-        // Sorting berdasarkan harga riil dari Firebase
-        if (sortOption === "low") result.sort((a, b) => (a.price || 0) - (b.price || 0));
-        else if (sortOption === "high") result.sort((a, b) => (b.price || 0) - (a.price || 0));
-        else if (sortOption === "rating") result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-
-        return result;
-    }, [searchTerm, selectedCategories, selectedPrices, selectedDurations, sortOption, enrichedData]);
-
-    // 4. LOGIKA PAGINATION
+    // LOGIKA PAGINATION
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentItems = filteredCourses.slice(indexOfFirstItem, indexOfLastItem);
@@ -82,7 +88,6 @@ const Kategori = () => {
 
     useEffect(() => { setCurrentPage(1); }, [searchTerm, selectedCategories, selectedPrices, selectedDurations]);
 
-    // Handler Filter Checkbox
     const handleFilterChange = (value, state, setState) => {
         if (state.includes(value)) {
             setState(state.filter(item => item !== value));
@@ -119,41 +124,23 @@ const Kategori = () => {
                             <button onClick={handleReset} className="text-[#3ECF4C] text-sm font-semibold hover:underline">Reset</button>
                         </div>
 
-                        {/* Filter: Bidang Studi (Kategori Luas) */}
                         <FilterGroup title="Bidang Studi" defaultOpen={true}>
                             {["Pemasaran", "Digital & Teknologi", "Pengembangan Diri", "Bisnis Manajemen"].map(cat => (
-                                <CheckboxItem
-                                    key={cat}
-                                    label={cat}
-                                    checked={selectedCategories.includes(cat)}
-                                    onChange={() => handleFilterChange(cat, selectedCategories, setSelectedCategories)}
-                                />
+                                <CheckboxItem key={cat} label={cat} checked={selectedCategories.includes(cat)} onChange={() => handleFilterChange(cat, selectedCategories, setSelectedCategories)} />
                             ))}
                         </FilterGroup>
                         <div className="border-t border-gray-100 my-4"></div>
 
-                        {/* Filter: Harga */}
                         <FilterGroup title="Harga" defaultOpen={true}>
                             {["Gratis", "Berbayar"].map(price => (
-                                <CheckboxItem
-                                    key={price}
-                                    label={price}
-                                    checked={selectedPrices.includes(price)}
-                                    onChange={() => handleFilterChange(price, selectedPrices, setSelectedPrices)}
-                                />
+                                <CheckboxItem key={price} label={price} checked={selectedPrices.includes(price)} onChange={() => handleFilterChange(price, selectedPrices, setSelectedPrices)} />
                             ))}
                         </FilterGroup>
                         <div className="border-t border-gray-100 my-4"></div>
 
-                        {/* Filter: Durasi */}
                         <FilterGroup title="Durasi" defaultOpen={true}>
                             {["Kurang dari 4 Jam", "4 - 8 Jam", "Lebih dari 8 Jam"].map(dur => (
-                                <CheckboxItem
-                                    key={dur}
-                                    label={dur}
-                                    checked={selectedDurations.includes(dur)}
-                                    onChange={() => handleFilterChange(dur, selectedDurations, setSelectedDurations)}
-                                />
+                                <CheckboxItem key={dur} label={dur} checked={selectedDurations.includes(dur)} onChange={() => handleFilterChange(dur, selectedDurations, setSelectedDurations)} />
                             ))}
                         </FilterGroup>
                     </div>
@@ -186,7 +173,7 @@ const Kategori = () => {
                                 <div className="relative flex-1 sm:w-64">
                                     <input
                                         type="text"
-                                        placeholder="Cari Kelas..."
+                                        placeholder="Cari Kelas di Server..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         className="w-full pl-4 pr-10 py-3 border border-gray-200 rounded-lg focus:outline-none focus:border-[#3ECF4C] focus:ring-1 focus:ring-[#3ECF4C] text-sm"
@@ -198,23 +185,27 @@ const Kategori = () => {
                             </div>
                         </div>
 
-                        {/* GRID KELAS (Menggunakan Data yang sudah diproses) */}
-                        {currentItems.length > 0 ? (
+                        {/* GRID KELAS */}
+                        {isLoading ? (
+                            <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                                <i className="fa-solid fa-spinner fa-spin text-4xl mb-4 text-[#3ECF4C]"></i>
+                                <p className="text-gray-500 font-medium">Mencari data dari server...</p>
+                            </div>
+                        ) : currentItems.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
                                 {currentItems.map((course) => (
                                     <CourseCard
                                         key={course.id}
-                                        id={course.id} // ID dari Firebase (String)
+                                        id={course.id}
                                         img={course.image || course.imageUrl}
                                         title={course.title}
                                         desc={course.description}
-                                        // Optional chaining (?) untuk menghindari error jika data belum lengkap
                                         authorName={course.instructor?.name || "Instruktur"}
                                         authorRole={course.instructor?.role || "Tutor"}
                                         authorImg={course.instructor?.avatar || `https://ui-avatars.com/api/?name=${course.instructor?.name || 'A'}`}
                                         rating={course.rating || 0}
                                         reviews={course.reviews || 0}
-                                        price={course.priceDisplay} // Menampilkan harga yang sudah dimapping
+                                        price={course.priceDisplay}
                                     />
                                 ))}
                             </div>
@@ -227,7 +218,7 @@ const Kategori = () => {
                         )}
 
                         {/* KOMPONEN PAGINATION */}
-                        {totalPages > 1 && (
+                        {!isLoading && totalPages > 1 && (
                             <Pagination
                                 currentPage={currentPage}
                                 totalPages={totalPages}

@@ -4,14 +4,15 @@ import Layout from '../components/Layout';
 import Pagination from '../components/Pagination';
 import { useNavigate } from 'react-router-dom';
 
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchCourses } from '../store/courseSlice';
 
 const heroBg = "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2671&auto=format&fit=crop";
 const newsletterBg = "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2574&auto=format&fit=crop";
 
 const Home = () => {
     const navigate = useNavigate();
-
+    const dispatch = useDispatch();
 
     const { data: courses, isLoading } = useSelector((state) => state.courses);
 
@@ -20,6 +21,11 @@ const Home = () => {
     const itemsPerPage = 9;
 
     const categories = ["Semua Kelas", "Teknologi", "Bisnis", "Desain", "Pemasaran", "Pengembangan Diri"];
+
+    //TRIGGER REDUX UNTUK MENGAMBIL DATA DARI BACKEND SAAT HALAMAN DIBUKA
+    useEffect(() => {
+        dispatch(fetchCourses());
+    }, [dispatch]);
 
     const filteredCourses = useMemo(() => {
         if (!courses || courses.length === 0) return [];

@@ -1,31 +1,31 @@
-import React, { useMemo, useState, useContext } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 
-// 1. IMPORT FIREBASE CONTEXT (Bukan Data Statis)
-import { CourseContext } from '../context/CourseContext';
+// 1. IMPORT REDUX (MENGGANTIKAN FIREBASE CONTEXT)
+import { useSelector } from 'react-redux';
 
 const DetailProduct = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
-    // 2. PANGGIL DATA DARI FIREBASE
-    const { courses } = useContext(CourseContext);
+    // 2. PANGGIL DATA DARI REDUX (POSTGRESQL)
+    const { data: courses } = useSelector((state) => state.courses);
 
     // State untuk Accordion Kurikulum
     const [openModuleIndex, setOpenModuleIndex] = useState(0);
 
-    // 3. AMBIL DATA KURSUS (HAPUS parseInt KARENA ID FIREBASE BERUPA STRING)
+    // 3. AMBIL DATA KURSUS (Disesuaikan agar ID angka dari Postgres cocok dengan ID string dari URL)
     const course = useMemo(() => {
         if (!courses) return null;
-        return courses.find(c => c.id === id);
+        return courses.find(c => c.id.toString() === id);
     }, [courses, id]);
 
     // 4. AMBIL REKOMENDASI KELAS LAINNYA
     const relatedCourses = useMemo(() => {
         if (!courses) return [];
         return courses
-            .filter(c => c.id !== id)
+            .filter(c => c.id.toString() !== id)
             .sort(() => 0.5 - Math.random())
             .slice(0, 3);
     }, [courses, id]);
@@ -61,15 +61,13 @@ const DetailProduct = () => {
     }
 
     // --- HELPER UNTUK TAMPILAN DINAMIS ---
-    // 1. Menghitung jumlah video dan dokumen dengan aman
     const totalVideos = (course.modules || []).reduce((acc, mod) => acc + (mod.items || []).filter(i => i.type === 'video').length, 0);
     const totalDocs = (course.modules || []).reduce((acc, mod) => acc + (mod.items || []).filter(i => i.type === 'doc').length, 0);
 
-    // 2. Format Harga Dinamis
     const priceVal = Number(course.price) || 0;
     const isFree = priceVal === 0;
     const priceDisplay = isFree ? "Gratis" : `Rp ${priceVal.toLocaleString('id-ID')}`;
-    const originalPriceDisplay = isFree ? "" : `Rp ${(priceVal + 450000).toLocaleString('id-ID')}`; // Logika diskon UI
+    const originalPriceDisplay = isFree ? "" : `Rp ${(priceVal + 450000).toLocaleString('id-ID')}`;
 
     return (
         <Layout>
@@ -141,7 +139,7 @@ const DetailProduct = () => {
                                 </div>
                             </section>
 
-                            {/* Kurikulum (Accordion SINKRON DATA) */}
+                            {/* Kurikulum */}
                             <section>
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">Kamu akan Mempelajari</h3>
                                 <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -180,7 +178,7 @@ const DetailProduct = () => {
                                 </div>
                             </section>
 
-                            {/* Rating dan Review (SINKRON DATA) */}
+                            {/* Rating dan Review */}
                             <section>
                                 <h3 className="text-xl font-bold text-gray-900 mb-4">Rating dan Review</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -273,7 +271,7 @@ const DetailProduct = () => {
                     </div>
                 </div>
 
-                {/* --- 3. VIDEO PEMBELAJARAN TERKAIT (SINKRON DATA) --- */}
+                {/* --- 3. VIDEO PEMBELAJARAN TERKAIT --- */}
                 {relatedCourses.length > 0 && (
                     <div className="bg-[#FFFDF3] py-10 border-t border-gray-100">
                         <div className="max-w-7xl mx-auto px-5 md:px-10">
